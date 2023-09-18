@@ -175,10 +175,10 @@ const start = (project: Project) => {
     });
 
     project.child?.stdout?.on("data", (data) =>
-      fs.writeFileSync(project.log, data)
+      fs.appendFileSync(project.log, data)
     );
     project.child?.stderr?.on("data", (data) =>
-      fs.writeFileSync(project.errLog, data)
+      fs.appendFileSync(project.errLog, data)
     );
   }
 };
