@@ -1,0 +1,23 @@
+{
+  "name": "command",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": {
+    "to": "./to.js",
+    "app": "./microApp.mjs"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "start": "tsc && node ./afterBuild.js && node ./build/microApp.mjs"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "open": "^9.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.0",
+    "typescript": "^5.2.2"
+  }
+}

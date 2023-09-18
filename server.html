@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>微前端控制台</title>
+    <style>
+      table {
+        font-size: 20px;
+        padding: 50px;
+      }
+      td {
+        padding: 8px;
+      }
+      button {
+        margin: 5px;
+      }
+
+      .closed {
+        color: red;
+      }
+
+      .opened {
+        color: green;
+      }
+
+      td {
+        text-align: center;
+      }
+
+      #pop {
+        display: none;
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        left: 0;
+        top: 0;
+        overflow: hidden;
+      }
+      #popMask {
+        background-color: rgba(0, 0, 0, 0.45);
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      #popWrap {
+        isolation: isolate;
+        background-color: white;
+        margin: 50px;
+        overflow: hidden;
+        height: calc(100vh - 100px);
+        display: flex;
+        flex-flow: column;
+      }
+      #popClose {
+        font-size: 20px;
+      }
+      #popContent {
+        overflow: auto;
+        padding: 0 20px;
+      }
+      #operation {
+        display: flex;
+      }
+      .locateInput {
+        font-size: 20px;
+        display: none;
+        padding: 5px 8px;
+      }
+
+      .locateLabel {
+        font-size: 20px;
+        padding: 5px 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>名称</th>
+          <th>状态</th>
+          <th>操作</th>
+          <th>日志</th>
+          <th>项目路径</th>
+        </tr>
+      </thead>
+      <tbody>
+        {placeHolder}
+      </tbody>
+    </table>
+    <div id="pop">
+      <div id="popMask"></div>
+      <div id="popWrap">
+        <div id="operation">
+          <button id="logClear">clear</button>
+          <button id="popClose">X</button>
+        </div>
+        <pre id="popContent"></pre>
+      </div>
+    </div>
+  </body>
+  <script>
+    let currentLog = "";
+
+    document.querySelector("tbody").addEventListener("dblclick", (e) => {
+      const label = e.target;
+      if (label.tagName.toLowerCase() !== "label") {
+        return;
+      }
+      const td = label.parentNode;
+      const input = td.querySelector(".locateInput");
+      input.style.display = "inline-block";
+      input.value = label.textContent;
+      label.style.display = "none";
+      input.focus();
+    });
+    document.querySelector("tbody").addEventListener("keyup", (e) => {
+      if (e.target.tagName.toLowerCase() !== "input") {
+        return;
+      }
+      const input = e.target;
+      const td = input.parentNode;
+      const tr = td.parentNode;
+      const key = tr.dataset.key;
+      const label = td.querySelector(".locateLabel");
+      const locate = input.value.trim();
+      const revert = () => {
+        label.style.display = "inline-block";
+        input.style.display = "none";
+      };
+      if (e.key === "Enter" && locate) {
+        fetch(`/api/setLocate/${key}/${encodeURIComponent(locate)}`).then(
+          () => {
+            label.textContent = locate;
+            revert();
+          }
+        );
+        return;
+      }
+      if (e.key == "Escape") {
+        revert();
+      }
+    });
+
+    document.querySelector("tbody").addEventListener("click", (e) => {
+      const target = e.target;
+      if (e.target.tagName.toLowerCase() !== "button") {
+        return;
+      }
+      target.disabled = true;
+      const className = target.className;
+      const tr = target.parentNode.parentNode;
+      const status = tr.querySelector(".status");
+      const key = tr.dataset.key;
+      const fetcher = (operation, cb) => {
+        window
+          .fetch(`/api/${operation}/${key}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.statusCode == 200) {
+              cb(data.data);
+            }
+          })
+          .finally(() => (target.disabled = false));
+      };
+
+      const onStarted = () => {
+        status.textContent = "已开启";
+        status.className = "status opened";
+        target.disabled = false;
+      };
+      const onClosed = () => {
+        status.textContent = "已关闭";
+        status.className = "status closed";
+        target.disabled = false;
+      };
+      if (className === "start") {
+        fetcher("start", onStarted);
+        return;
+      }
+      if (className === "stop") {
+        fetcher("stop", onClosed);
+      }
+
+      if (className === "restart") {
+        fetcher("restart", onStarted);
+      }
+
+      if (className === "vscode") {
+        fetcher("vscode");
+      }
+
+      if (className === "log") {
+        currentLog = "log";
+        readData("log");
+      }
+
+      if (className === "errLog") {
+        currentLog = "errLog";
+
+        readData("errLog");
+      }
+
+      const pop = document.getElementById("pop");
+      const popContent = document.getElementById("popContent");
+      const popClose = document.getElementById("popClose");
+      document.querySelector("#pop").addEventListener("click", (e) => {
+        if (e.target.id === "popClose") {
+          pop.style.display = "none";
+        }
+        if (e.target.id === "logClear") {
+          window
+            .fetch(`/api/${currentLog}Clear/${key}`)
+            .then(() => (pop.style.display = "none"));
+        }
+      });
+
+      async function readData(type) {
+        const response = await fetch(`/api/${type}/${key}`);
+        const reader = response.body.getReader();
+        const { done, value } = await reader.read();
+
+        var string = new TextDecoder()
+          .decode(value)
+          .replace(/\[1m/g, "")
+          .replace(/\x1B/g, "")
+          .replace(/\[22m/g, "")
+          .replace(/\[32m/g, "")
+          .replace(/\[33m/g, "")
+          .replace(/\[39m/g, "");
+        target.disabled = false;
+        popContent.textContent = string;
+        pop.style.display = "block";
+      }
+    });
+  </script>
+</html>
