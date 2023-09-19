@@ -80,6 +80,7 @@ const projects: Project[] = [
     ...p,
     log: path.join(tmp, `${p.key}out.log`),
     errLog: path.join(tmp, `${p.key}err.log`),
+    status: "loading",
   };
 
   if (overRideConfigs[p.key]) {
@@ -104,6 +105,7 @@ const writeOverrideConfig = (key: string, locate: string) => {
   }
 };
 interface Project {
+  status: "success" | "error" | "loading";
   key: string;
   locate: string;
   command?: string;
@@ -130,14 +132,11 @@ const htmlHandler = (res: http.ServerResponse) => {
               project.child != null ? "已开启" : "已关闭"
             }</td>
                   <td>
-                    ${
-                      isServer(project)
-                        ? `<button class="restart">重启</button>`
-                        : `<button class="start">打开</button>
-                           <button class="stop">关闭</button>
-                           <button class="restart">重启</button>
-                           <button class="vscode">vscode</button>`
-                    }
+                    <button class="start">打开</button>
+                    <button class="stop">关闭</button>
+                    <button class="restart">重启</button>
+                    <button class="vscode">vscode</button>
+                  </td>
                     <td>
                       <button class="log">日志</button>
                       <button class="errLog">错误日志</button>
@@ -165,7 +164,6 @@ const stop = (project: Project) => {
     spawn("taskkill", ["/pid", String(project.child.pid), "/f", "/t"]);
     console.log(`kill process: ${project.key}`);
     project.child = null;
-    fs.writeFileSync(project.log, "");
   }
 };
 const start = (project: Project) => {
@@ -174,12 +172,22 @@ const start = (project: Project) => {
       cwd: project.locate,
     });
 
-    project.child?.stdout?.on("data", (data) =>
-      fs.appendFileSync(project.log, data)
-    );
-    project.child?.stderr?.on("data", (data) =>
-      fs.appendFileSync(project.errLog, data)
-    );
+    fs.writeFileSync(project.log, "");
+    fs.writeFileSync(project.errLog, "");
+
+    project.child?.stdout?.on("data", (data) => {
+      if (String(data).endsWith("200 200")) {
+        project.status = "success";
+      } else {
+        project.status = "loading";
+      }
+
+      fs.appendFileSync(project.log, data);
+    });
+    project.child?.stderr?.on("data", (data) => {
+      project.status = "error";
+      fs.appendFileSync(project.errLog, data);
+    });
   }
 };
 
@@ -292,7 +300,7 @@ http
     const serverProjects = projects.filter((p) => isServer(p));
     const ehProjects = projects.filter((p) => p.key.includes("eh-"));
     serverProjects.forEach(start);
-    wait(2000).then(() => {
+    wait(500).then(() => {
       ehProjects.forEach(start);
     });
     open(`http://localhost:${port}`);

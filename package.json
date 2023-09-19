@@ -9,7 +9,8 @@
   },
   "scripts": {
     "lint": "eslint",
-    "start": "tsc && node ./afterBuild.js && node ./build/microApp.mjs"
+    "start": "tsc && node ./afterBuild.js && node ./build/microApp.mjs",
+    "tsc": "tsc"
   },
   "author": "",
   "license": "ISC",
