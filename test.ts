@@ -1,4 +1,4 @@
-const methodMappingAuthsKey = Symbol("methodMappingAuths");
+const methodMappingAuthsKey = Symbol('methodMappingAuths');
 
 interface AuthObject {
   advices?: PermissionCode[];
@@ -30,19 +30,19 @@ const overrideConstructor = (ctr: any) => {
           ...(authObject?.methods?.[method] ?? []),
         ];
         const message = `method(url): ${method} requiredPermissions: [${requiredPermissions.join(
-          ","
+          ','
         )}] all permission codes from session: "${ctx?.session?.get(
-          "privileges"
+          'privileges'
         )}`;
-        ctx.logger.info("permission", message);
+        ctx.logger.info('permission', message);
 
         if (
           requiredPermissions.length > 0 &&
           !ctx?.session
-            ?.get("privileges")
+            ?.get('privileges')
             ?.some((p: any) => requiredPermissions.includes(Number(p)))
         ) {
-          console.log("ffff");
+          console.log('ffff');
         }
         return handler(root, variables, ctx);
       };
@@ -76,7 +76,7 @@ const injectAuthorizionsThenRewriteConstructorOnce = (
 
 const getClassMethods = (ctr: any) => {
   return Object.getOwnPropertyNames(ctr.prototype).filter(
-    (prop) => typeof (ctr[prop] as any) !== "function" && prop !== "constructor"
+    (prop) => typeof (ctr[prop] as any) !== 'function' && prop !== 'constructor'
   );
 };
 
@@ -84,7 +84,7 @@ const AuthAdvice =
   (...commonPermisionCodes: PermissionCode[]): any =>
   (ctr: any, ...rest: any[]): void => {
     if (rest.length > 0) {
-      throw new Error("@AuthAdvice can only apply on class");
+      throw new Error('@AuthAdvice can only apply on class');
     }
     injectAuthorizionsThenRewriteConstructorOnce(ctr, commonPermisionCodes);
     return ctr as any;
@@ -98,16 +98,17 @@ const Auth =
       permisionCodes,
       method
     );
+    return ctr;
   };
 
 interface MethodMappingHandler {
   [method: string]: (root: any, variables: any, ctx: any) => any;
 }
 
-@AuthAdvice("sfdfsdf")
+@AuthAdvice('sfdfsdf')
 class A {
   method1() {
-    console.log("method1");
+    console.log('method1');
   }
 }
 

@@ -73,7 +73,7 @@ const projects: Project[] = [
   },
   {
     key: 'vee-bff',
-    locate: 'c:/work/comp-data-quality-ui',
+    locate: 'c:/work/comp-data-quality-bff',
   },
 ].map((p): Project => {
   let newProject: Project = {
@@ -118,6 +118,7 @@ const isServer = (project: Project) => project.key.includes('-server');
 
 const htmlHandler = (res: http.ServerResponse) => {
   let html = '';
+  const ports = new Set();
   try {
     html = fs
       .readFileSync(path.join(__dirname, './server.html'), 'utf-8')
@@ -128,12 +129,34 @@ const htmlHandler = (res: http.ServerResponse) => {
             const port = getPort(project);
             const proxy = getProxy(project) ?? '';
             const server = isServer(project);
+            let color = '';
+            switch (project.status) {
+              case 'loading':
+                color = 'grey';
+                break;
+              case 'error':
+                color = 'red';
+                break;
+              case 'success':
+                color = 'green';
+                break;
+              default:
+                break;
+            }
+            let portColor = 'black';
+            if (ports.has(port)) {
+              portColor = 'red';
+            }
+
+            ports.add(port);
             return `
                 <tr data-key="${project.key}">
                   <td>${project.key}</th>
                   <td class="status ${project.child ? 'opened' : 'closed'}">${
               project.child != null ? '已开启' : '已关闭'
-            }${server ? project.status : ''}
+            }<span style="color:${color}">${
+              !server ? project.status : ''
+            }</span>
                   </td>
                   <td>
                     <button class="start">打开</button>
@@ -152,7 +175,7 @@ const htmlHandler = (res: http.ServerResponse) => {
                       }" class="locateInput" data-type="locate"/>
                     </td>
                     <td>
-                      <label class="locateLabel">${port}</label>
+                      <label class="locateLabel" style="color:${portColor}">${port}</label>
                       <input type="text" value="${port}" class="locateInput" data-type="port"/>
                     </td>
                     <td style="width:60px;height:30px">
