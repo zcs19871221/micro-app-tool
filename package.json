@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "bin": {
-    "to": "./to.js",
-    "app": "./microApp.mjs"
-  },
   "scripts": {
     "lint": "eslint",
     "start": "tsc && node ./afterBuild.js && node ./build/microApp.mjs",

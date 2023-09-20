@@ -78,6 +78,9 @@
   </head>
   <body>
     <table>
+      <caption>
+        微前端控制器
+      </caption>
       <thead>
         <tr>
           <th>名称</th>
@@ -85,6 +88,8 @@
           <th>操作</th>
           <th>日志</th>
           <th>项目路径</th>
+          <th>端口</th>
+          <th>代理</th>
         </tr>
       </thead>
       <tbody>
@@ -103,57 +108,64 @@
     </div>
   </body>
   <script>
-    let currentLog = "";
+    let currentLog = '';
 
-    document.querySelector("tbody").addEventListener("dblclick", (e) => {
+    document.querySelector('tbody').addEventListener('dblclick', (e) => {
       const label = e.target;
-      if (label.tagName.toLowerCase() !== "label") {
+      if (
+        label.tagName.toLowerCase() !== 'label' &&
+        label.tagName.toLowerCase() !== 'pre'
+      ) {
         return;
       }
-      const td = label.parentNode;
-      const input = td.querySelector(".locateInput");
-      input.style.display = "inline-block";
+      const input = label.nextElementSibling;
+      input.style.display = 'inline-block';
       input.value = label.textContent;
-      label.style.display = "none";
+      label.style.display = 'none';
       input.focus();
     });
-    document.querySelector("tbody").addEventListener("keyup", (e) => {
-      if (e.target.tagName.toLowerCase() !== "input") {
+    document.querySelector('tbody').addEventListener('keyup', (e) => {
+      if (
+        e.target.tagName.toLowerCase() !== 'input' &&
+        e.target.tagName.toLowerCase() !== 'textarea'
+      ) {
         return;
       }
       const input = e.target;
-      const td = input.parentNode;
-      const tr = td.parentNode;
+      const tr = input.parentNode.parentNode;
       const key = tr.dataset.key;
-      const label = td.querySelector(".locateLabel");
-      const locate = input.value.trim();
+      const label = input.previousElementSibling;
+      let value = input.value.trim();
       const revert = () => {
-        label.style.display = "inline-block";
-        input.style.display = "none";
+        label.style.display = 'inline-block';
+        input.style.display = 'none';
       };
-      if (e.key === "Enter" && locate) {
-        fetch(`/api/setLocate/${key}/${encodeURIComponent(locate)}`).then(
-          () => {
-            label.textContent = locate;
-            revert();
-          }
-        );
+      const type = input.dataset.type;
+      if (e.key === 'Enter' && value) {
+        value = value.replace(/(\S)\n(\S)/, (match, a, b) => a + b);
+        e.target.value = value;
+        fetch(
+          `/api/setConfig/${key}/${type}/${encodeURIComponent(value)}`
+        ).then(() => {
+          label.textContent = value;
+          revert();
+        });
         return;
       }
-      if (e.key == "Escape") {
+      if (e.key == 'Escape') {
         revert();
       }
     });
 
-    document.querySelector("tbody").addEventListener("click", (e) => {
+    document.querySelector('tbody').addEventListener('click', (e) => {
       const target = e.target;
-      if (e.target.tagName.toLowerCase() !== "button") {
+      if (e.target.tagName.toLowerCase() !== 'button') {
         return;
       }
       target.disabled = true;
       const className = target.className;
       const tr = target.parentNode.parentNode;
-      const status = tr.querySelector(".status");
+      const status = tr.querySelector('.status');
       const key = tr.dataset.key;
       const fetcher = (operation, cb) => {
         window
@@ -168,53 +180,53 @@
       };
 
       const onStarted = () => {
-        status.textContent = "已开启";
-        status.className = "status opened";
+        status.textContent = '已开启';
+        status.className = 'status opened';
         target.disabled = false;
       };
       const onClosed = () => {
-        status.textContent = "已关闭";
-        status.className = "status closed";
+        status.textContent = '已关闭';
+        status.className = 'status closed';
         target.disabled = false;
       };
-      if (className === "start") {
-        fetcher("start", onStarted);
+      if (className === 'start') {
+        fetcher('start', onStarted);
         return;
       }
-      if (className === "stop") {
-        fetcher("stop", onClosed);
+      if (className === 'stop') {
+        fetcher('stop', onClosed);
       }
 
-      if (className === "restart") {
-        fetcher("restart", onStarted);
+      if (className === 'restart') {
+        fetcher('restart', onStarted);
       }
 
-      if (className === "vscode") {
-        fetcher("vscode");
+      if (className === 'vscode') {
+        fetcher('vscode');
       }
 
-      if (className === "log") {
-        currentLog = "log";
-        readData("log");
+      if (className === 'log') {
+        currentLog = 'log';
+        readData('log');
       }
 
-      if (className === "errLog") {
-        currentLog = "errLog";
+      if (className === 'errLog') {
+        currentLog = 'errLog';
 
-        readData("errLog");
+        readData('errLog');
       }
 
-      const pop = document.getElementById("pop");
-      const popContent = document.getElementById("popContent");
-      const popClose = document.getElementById("popClose");
-      document.querySelector("#pop").addEventListener("click", (e) => {
-        if (e.target.id === "popClose") {
-          pop.style.display = "none";
+      const pop = document.getElementById('pop');
+      const popContent = document.getElementById('popContent');
+      const popClose = document.getElementById('popClose');
+      document.querySelector('#pop').addEventListener('click', (e) => {
+        if (e.target.id === 'popClose') {
+          pop.style.display = 'none';
         }
-        if (e.target.id === "logClear") {
+        if (e.target.id === 'logClear') {
           window
             .fetch(`/api/${currentLog}Clear/${key}`)
-            .then(() => (pop.style.display = "none"));
+            .then(() => (pop.style.display = 'none'));
         }
       });
 
@@ -225,15 +237,15 @@
 
         var string = new TextDecoder()
           .decode(value)
-          .replace(/\[1m/g, "")
-          .replace(/\x1B/g, "")
-          .replace(/\[22m/g, "")
-          .replace(/\[32m/g, "")
-          .replace(/\[33m/g, "")
-          .replace(/\[39m/g, "");
+          .replace(/\[1m/g, '')
+          .replace(/\x1B/g, '')
+          .replace(/\[22m/g, '')
+          .replace(/\[32m/g, '')
+          .replace(/\[33m/g, '')
+          .replace(/\[39m/g, '');
         target.disabled = false;
         popContent.textContent = string;
-        pop.style.display = "block";
+        pop.style.display = 'block';
       }
     });
   </script>
