@@ -36,11 +36,13 @@ const projects: Project[] = [
     key: 'bff-server',
     locate: 'c:/work/eh-bff',
     command: 'npm run devserver',
+    status: 'success',
   },
   {
     key: 'ui-server',
     locate: 'c:/work/eh-ui',
     command: 'npm run devserver',
+    status: 'success',
   },
   {
     key: 'eh-ui',
@@ -80,7 +82,7 @@ const projects: Project[] = [
     ...p,
     log: path.join(tmp, `${p.key}out.log`),
     errLog: path.join(tmp, `${p.key}err.log`),
-    status: 'loading',
+    status: (p.status ?? 'loading') as any,
   };
 
   if (overRideConfigs[p.key]) {
@@ -114,84 +116,36 @@ interface Project {
   child?: ChildProcess | null;
 }
 
+interface ProjectResponse {
+  status: 'success' | 'error' | 'loading';
+  key: string;
+  locate: string;
+  command?: string;
+  opened: boolean;
+  port: string;
+  proxy: string;
+  isServer: boolean;
+}
+
+const getProjectResponse = (): ProjectResponse[] => {
+  return projects.map((project): ProjectResponse => {
+    return {
+      port: getPort(project) ?? '',
+      proxy: getProxy(project) ?? '',
+      isServer: isServer(project),
+      status: project.status,
+      key: project.key,
+      locate: project.locate,
+      command: project.command,
+      opened: project.child != null,
+    };
+  });
+};
 const isServer = (project: Project) => project.key.includes('-server');
 
 const htmlHandler = (res: http.ServerResponse) => {
-  let html = '';
-  const ports = new Set();
-  try {
-    html = fs
-      .readFileSync(path.join(__dirname, './server.html'), 'utf-8')
-      .replace(
-        '{placeHolder}',
-        projects
-          .map((project) => {
-            const port = getPort(project);
-            const proxy = getProxy(project) ?? '';
-            const server = isServer(project);
-            let color = '';
-            switch (project.status) {
-              case 'loading':
-                color = 'grey';
-                break;
-              case 'error':
-                color = 'red';
-                break;
-              case 'success':
-                color = 'green';
-                break;
-              default:
-                break;
-            }
-            let portColor = 'black';
-            if (ports.has(port)) {
-              portColor = 'red';
-            }
-
-            ports.add(port);
-            return `
-                <tr data-key="${project.key}">
-                  <td>${project.key}</th>
-                  <td class="status ${project.child ? 'opened' : 'closed'}">${
-              project.child != null ? '已开启' : '已关闭'
-            }<span style="color:${color}">${
-              !server ? project.status : ''
-            }</span>
-                  </td>
-                  <td>
-                    <button class="start">打开</button>
-                    <button class="stop">关闭</button>
-                    <button class="restart">重启</button>
-                    <button class="vscode">vscode</button>
-                  </td>
-                    <td>
-                      <button class="log">日志</button>
-                      <button class="errLog">错误日志</button>
-                    </td>
-                    <td>
-                      <label class="locateLabel">${project.locate}</label>
-                      <input type="text" value="${
-                        project.locate
-                      }" class="locateInput" data-type="locate"/>
-                    </td>
-                    <td>
-                      <label class="locateLabel" style="color:${portColor}">${port}</label>
-                      <input type="text" value="${port}" class="locateInput" data-type="port"/>
-                    </td>
-                    <td style="width:60px;height:30px">
-                      <pre class="locateLabel" style="width: 100%;height:100%">${proxy}</pre>
-                      <textarea  style="width: 100%;height:100%" value="${proxy}" class="locateInput" data-type="proxy" ></textarea>
-                    </td>
-                </tr>`;
-          })
-          .join('')
-      );
-  } catch (err: any) {
-    html = `<div>error: ${err?.message ?? err}</div>`;
-  }
-
   res.setHeader('content-type', 'text/html');
-  res.end(html);
+  res.end(fs.readFileSync(path.join(__dirname, './server.html')));
 };
 
 const stop = (project: Project) => {
@@ -212,13 +166,15 @@ const start = (project: Project) => {
 
     project.child?.stdout?.on('data', (data) => {
       const msg = String(data);
-      if (msg.includes('registeration result: 200 200')) {
+      if (msg.includes('Compiled successfully')) {
         project.status = 'success';
       }
       if (msg.includes('Compiled with some errors ')) {
         project.status = 'error';
       }
-
+      if (msg.includes('Compiling ')) {
+        project.status = 'loading';
+      }
       fs.appendFileSync(project.log, data);
     });
     project.child?.stderr?.on('data', (data) => {
@@ -317,9 +273,9 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
   let sented = false;
   try {
     const [, , operation, projectKey, configType, configValue] = url.split('/');
-    const project = projects.find((p) => p.key === projectKey);
+    const project = projects.find((p) => p.key === projectKey)!;
 
-    if (!project) {
+    if (!project && operation !== 'projects') {
       response.statusCode = 400;
       response.data = 'not valid project key';
       res.end('not valid project key');
@@ -374,6 +330,9 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
           }
         }
         break;
+      case 'projects':
+        response.data = JSON.stringify(getProjectResponse());
+        break;
       default:
         throw new Error(`not valid operation: ${operation}`);
     }
@@ -382,7 +341,7 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
     response.statusCode = 500;
     response.data = err.stack ?? err.message;
   } finally {
-    if (!sented) {
+    if (!res.writableEnded) {
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify(response));
     }

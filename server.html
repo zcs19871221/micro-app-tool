@@ -89,9 +89,7 @@
           <th>代理</th>
         </tr>
       </thead>
-      <tbody>
-        {placeHolder}
-      </tbody>
+      <tbody></tbody>
     </table>
     <div id="pop">
       <div id="popMask"></div>
@@ -105,7 +103,12 @@
     </div>
   </body>
   <script>
-    let currentLog = '';
+    const logInterval = 1000;
+    const projectsInterval = 2000;
+    let projects = [];
+    let logKey = '';
+    let logType = '';
+    let isEditing = false;
 
     document.querySelector('tbody').addEventListener('dblclick', (e) => {
       const label = e.target;
@@ -115,6 +118,7 @@
       ) {
         return;
       }
+      isEditing = true;
       const input = label.nextElementSibling;
       input.style.display = 'inline-block';
       input.value = label.textContent;
@@ -141,108 +145,223 @@
       if (e.key === 'Enter' && value) {
         value = value.replace(/(\S)\n(\S)/, (match, a, b) => a + b);
         e.target.value = value;
-        fetch(
-          `/api/setConfig/${key}/${type}/${encodeURIComponent(value)}`
-        ).then(() => {
-          label.textContent = value;
-          revert();
-        });
+        fetch(`/api/setConfig/${key}/${type}/${encodeURIComponent(value)}`)
+          .then(() => {
+            label.textContent = value;
+            revert();
+          })
+          .finally(() => {
+            isEditing = false;
+          });
         return;
       }
       if (e.key == 'Escape') {
+        isEditing = false;
         revert();
       }
     });
+    const fetcher = (operation, key, cb) => {
+      return window
+        .fetch(`/api/${operation}/${key}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.statusCode == 200) {
+            cb?.(data.data);
+          }
+        });
+    };
 
+    const onStarted = () => {
+      status.textContent = '已开启';
+      status.className = 'status opened';
+    };
+    const onClosed = () => {
+      status.textContent = '已关闭';
+      status.className = 'status closed';
+    };
+
+    const pop = document.getElementById('pop');
+    const popContent = document.getElementById('popContent');
+    const popClose = document.getElementById('popClose');
+    document.querySelector('#pop').addEventListener('click', (e) => {
+      if (e.target.id === 'popClose') {
+        pop.style.display = 'none';
+        logKey = null;
+        logType = null;
+        return;
+      }
+      if (e.target.id === 'logClear' && logType) {
+        window.fetch(`/api/${logType}Clear/${logKey}`);
+      }
+    });
+
+    const fetchOpenLog = async () => {
+      if (!logType || !logKey) {
+        return;
+      }
+      const project = projects.find((p) => p.key === logKey);
+      const response = await fetch(`/api/${logType}/${logKey}`);
+      const reader = response.body.getReader();
+      const { done, value } = await reader.read();
+
+      popContent.textContent = new TextDecoder()
+        .decode(value)
+        .replace(/\[1m/g, '')
+        .replace(/\x1B/g, '')
+        .replace(/\[22m/g, '')
+        .replace(/\[32m/g, '')
+        .replace(/\[33m/g, '')
+        .replace(/\[39m/g, '');
+      setTimeout(() => {
+        fetchOpenLog();
+      }, logInterval);
+    };
+    async function openLog(type, key) {
+      logKey = key;
+      logType = type;
+      pop.style.display = 'block';
+      fetchOpenLog();
+    }
+
+    const tbody = document.querySelector('tbody');
+
+    const fetchProjects = () => {
+      window
+        .fetch(`/api/projects`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.statusCode == 200) {
+            projects = JSON.parse(json.data);
+            const ports = new Set();
+            if (isEditing) {
+              return;
+            }
+            const html = projects
+              .map(
+                ({
+                  port,
+                  proxy,
+                  isServer,
+                  status,
+                  key,
+                  locate,
+                  command,
+                  logOutput,
+                  errLogOutput,
+                  opened,
+                }) => {
+                  let statusColor = '';
+                  let statusText = '';
+
+                  if (!opened) {
+                    statusText = 'closed';
+                    statusColor = 'grey;';
+                  } else if (status === 'loading') {
+                    statusText = 'compiling...';
+                    statusColor = 'blue';
+                  } else if (status === 'success') {
+                    statusText = 'success';
+                    statusColor = 'green';
+                  } else {
+                    statusText = 'error';
+                    statusColor = 'red';
+                  }
+                  let portColor = 'black';
+                  if (ports.has(port)) {
+                    portColor = 'red';
+                  }
+
+                  ports.add(port);
+                  return `
+                <tr data-key="${key}">
+                  <td>${key}</th>
+                  <td class="status" style="color:${statusColor};font-size: 20px;font-weight:bold;width: 11em">${statusText}</span>
+                  </td>
+                  <td>
+                    <button class="start">打开</button>
+                    <button class="stop">关闭</button>
+                    <button class="restart">重启</button>
+                    <button class="vscode">vscode</button>
+                  </td>
+                    <td>
+                      <button class="log">日志</button>
+                      <button class="errLog">错误日志</button>
+                    </td>
+                    <td>
+                      <label class="locateLabel">${locate}</label>
+                      <input type="text" value="${locate}" class="locateInput" data-type="locate"/>
+                    </td>
+                    <td>
+                      <label class="locateLabel" style="color:${portColor}">${port}</label>
+                      <input type="text" value="${port}" class="locateInput" data-type="port"/>
+                    </td>
+                    <td style="width:60px;height:30px">
+                      <pre class="locateLabel" style="width: 100%;height:100%">${proxy}</pre>
+                      <textarea  style="width: 100%;height:100%" value="${proxy}" class="locateInput" data-type="proxy" ></textarea>
+                    </td>
+                </tr>`;
+                }
+              )
+              .join('');
+            tbody.innerHTML = html;
+          }
+        })
+        .finally(() => {
+          setTimeout(() => {
+            fetchProjects();
+          }, projectsInterval);
+        });
+    };
+    fetchProjects();
     document.querySelector('tbody').addEventListener('click', (e) => {
       const target = e.target;
       if (e.target.tagName.toLowerCase() !== 'button') {
         return;
       }
-      target.disabled = true;
-      const className = target.className;
-      const tr = target.parentNode.parentNode;
-      const status = tr.querySelector('.status');
-      const key = tr.dataset.key;
-      const fetcher = (operation, cb) => {
-        window
-          .fetch(`/api/${operation}/${key}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.statusCode == 200) {
-              cb(data.data);
-            }
-          })
-          .finally(() => (target.disabled = false));
-      };
+      doFetch();
+      async function doFetch() {
+        target.disabled = true;
+        try {
+          const className = target.className;
+          const tr = target.parentNode.parentNode;
+          const status = tr.querySelector('.status');
+          const key = tr.dataset.key;
 
-      const onStarted = () => {
-        status.textContent = '已开启';
-        status.className = 'status opened';
-        target.disabled = false;
-      };
-      const onClosed = () => {
-        status.textContent = '已关闭';
-        status.className = 'status closed';
-        target.disabled = false;
-      };
-      if (className === 'start') {
-        fetcher('start', onStarted);
-        return;
-      }
-      if (className === 'stop') {
-        fetcher('stop', onClosed);
-      }
+          if (className === 'start') {
+            await fetcher('start', key, onStarted);
+            return;
+          }
+          if (className === 'stop') {
+            await fetcher('stop', key, onClosed);
+            return;
+          }
 
-      if (className === 'restart') {
-        fetcher('restart', onStarted);
-      }
+          if (className === 'restart') {
+            await fetcher('restart', key, onStarted);
+            return;
+          }
 
-      if (className === 'vscode') {
-        fetcher('vscode');
-      }
+          if (className === 'vscode') {
+            await fetcher('vscode', key);
+            return;
+          }
 
-      if (className === 'log') {
-        currentLog = 'log';
-        readData('log');
-      }
+          if (className === 'log') {
+            logType = 'log';
+            await openLog('log', key);
+            return;
+          }
 
-      if (className === 'errLog') {
-        currentLog = 'errLog';
-
-        readData('errLog');
-      }
-
-      const pop = document.getElementById('pop');
-      const popContent = document.getElementById('popContent');
-      const popClose = document.getElementById('popClose');
-      document.querySelector('#pop').addEventListener('click', (e) => {
-        if (e.target.id === 'popClose') {
-          pop.style.display = 'none';
+          if (className === 'errLog') {
+            logType = 'errLog';
+            await openLog('errLog', key);
+            return;
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          target.disabled = false;
         }
-        if (e.target.id === 'logClear') {
-          window
-            .fetch(`/api/${currentLog}Clear/${key}`)
-            .then(() => (pop.style.display = 'none'));
-        }
-      });
-
-      async function readData(type) {
-        const response = await fetch(`/api/${type}/${key}`);
-        const reader = response.body.getReader();
-        const { done, value } = await reader.read();
-
-        var string = new TextDecoder()
-          .decode(value)
-          .replace(/\[1m/g, '')
-          .replace(/\x1B/g, '')
-          .replace(/\[22m/g, '')
-          .replace(/\[32m/g, '')
-          .replace(/\[33m/g, '')
-          .replace(/\[39m/g, '');
-        target.disabled = false;
-        popContent.textContent = string;
-        pop.style.display = 'block';
       }
     });
   </script>
