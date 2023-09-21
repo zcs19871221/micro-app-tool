@@ -270,7 +270,6 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
     statusCode: 200,
     data: '',
   };
-  let sented = false;
   try {
     const [, , operation, projectKey, configType, configValue] = url.split('/');
     const project = projects.find((p) => p.key === projectKey)!;
@@ -300,11 +299,9 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
         execSync(`code ${project.locate}`);
         break;
       case 'log':
-        sented = true;
         res.end(fs.readFileSync(project.log));
         break;
       case 'errLog':
-        sented = true;
         res.end(fs.readFileSync(project.errLog));
         break;
       case 'logClear':
@@ -314,20 +311,18 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
         fs.writeFileSync(project.errLog, '');
         break;
       case 'setConfig':
-        {
-          switch (configType) {
-            case 'locate':
-              writeOverrideConfig(project.key, decodeURIComponent(configValue));
-              break;
-            case 'port':
-              writePort(project, decodeURIComponent(configValue));
-              break;
-            case 'proxy':
-              writeProxy(project, decodeURIComponent(configValue));
-              break;
-            default:
-              break;
-          }
+        switch (configType) {
+          case 'locate':
+            writeOverrideConfig(project.key, decodeURIComponent(configValue));
+            break;
+          case 'port':
+            writePort(project, decodeURIComponent(configValue));
+            break;
+          case 'proxy':
+            writeProxy(project, decodeURIComponent(configValue));
+            break;
+          default:
+            break;
         }
         break;
       case 'projects':

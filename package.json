@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint",
-    "start": "tsc && node ./afterBuild.js && node ./build/microApp.mjs",
+    "start": "tsc && node ./afterStart.js && node ./build/microApp.mjs",
+    "build": "tsc && node ./afterBuild.js",
     "tsc": "tsc"
   },
   "author": "",
