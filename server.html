@@ -77,6 +77,8 @@
     </style>
   </head>
   <body>
+    <button class="proxy">toggle 代理</button>
+    <button class="api">toggle api</button>
     <table>
       <thead>
         <tr>
@@ -87,6 +89,7 @@
           <th>项目路径</th>
           <th>端口</th>
           <th>代理</th>
+          <th>bff-api</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -110,6 +113,21 @@
     let logType = '';
     let isEditing = false;
 
+    let showProxy = false;
+    let showApi = false;
+    let fetchProjectsTimer = null;
+    let fetchLogTimer = null;
+    document.querySelector('.api').addEventListener('click', () => {
+      clearTimeout(fetchProjectsTimer);
+      fetchProjects();
+      showApi = !showApi;
+    });
+
+    document.querySelector('.proxy').addEventListener('click', () => {
+      clearTimeout(fetchProjectsTimer);
+      fetchProjects();
+      showProxy = !showProxy;
+    });
     document.querySelector('tbody').addEventListener('dblclick', (e) => {
       const label = e.target;
       if (
@@ -186,12 +204,15 @@
     document.querySelector('#pop').addEventListener('click', (e) => {
       if (e.target.id === 'popClose') {
         pop.style.display = 'none';
+        clearTimeout(fetchLogTimer);
         logKey = null;
         logType = null;
         return;
       }
       if (e.target.id === 'logClear' && logType) {
         window.fetch(`/api/${logType}Clear/${logKey}`);
+        clearTimeout(fetchLogTimer);
+        fetchOpenLog();
       }
     });
 
@@ -212,7 +233,7 @@
         .replace(/\[32m/g, '')
         .replace(/\[33m/g, '')
         .replace(/\[39m/g, '');
-      setTimeout(() => {
+      fetchLogTimer = setTimeout(() => {
         fetchOpenLog();
       }, logInterval);
     };
@@ -249,6 +270,7 @@
                   logOutput,
                   errLogOutput,
                   opened,
+                  api,
                 }) => {
                   let statusColor = '';
                   let statusText = '';
@@ -295,10 +317,22 @@
                       <label class="locateLabel" style="color:${portColor}">${port}</label>
                       <input type="text" value="${port}" class="locateInput" data-type="port"/>
                     </td>
-                    <td style="width:60px;height:30px">
+                   ${
+                     showProxy
+                       ? `<td style="width:50px;">
                       <pre class="locateLabel" style="width: 100%;height:100%">${proxy}</pre>
                       <textarea  style="width: 100%;height:100%" value="${proxy}" class="locateInput" data-type="proxy" ></textarea>
-                    </td>
+                    </td>`
+                       : ''
+                   }
+                    ${
+                      showApi
+                        ? `<td style="width:50px;">
+                      <pre class="locateLabel" style="width: 100%;height:100%">${api}</pre>
+                      <textarea  style="width: 100%;height:500px;" value="${api}" class="locateInput" data-type="api" ></textarea>
+                    </td>`
+                        : ''
+                    }
                 </tr>`;
                 }
               )
@@ -307,7 +341,7 @@
           }
         })
         .finally(() => {
-          setTimeout(() => {
+          fetchProjectsTimer = setTimeout(() => {
             fetchProjects();
           }, projectsInterval);
         });

@@ -77,6 +77,10 @@ const projects: Project[] = [
     key: 'vee-bff',
     locate: 'c:/work/comp-data-quality-bff',
   },
+  {
+    key: 'ticket-bff',
+    locate: 'c:/work/comp-ticket-bff',
+  },
 ].map((p): Project => {
   let newProject: Project = {
     ...p,
@@ -124,6 +128,7 @@ interface ProjectResponse {
   opened: boolean;
   port: string;
   proxy: string;
+  api: string;
   isServer: boolean;
 }
 
@@ -132,6 +137,7 @@ const getProjectResponse = (): ProjectResponse[] => {
     return {
       port: getPort(project) ?? '',
       proxy: getProxy(project) ?? '',
+      api: getApi(project) ?? '',
       isServer: isServer(project),
       status: project.status,
       key: project.key,
@@ -245,7 +251,21 @@ export const getProxy = (project: Project) => {
     return '';
   }
   const config = fs.readFileSync(p, 'utf-8');
-  return config.match(/router:[\s]*(\{[^}]+\})/)?.[1];
+  const proxy = config.match(/router:[\s]*(\{[^}]+\})/)?.[1];
+  if (proxy) {
+    return JSON.stringify(JSON.parse(proxy.replace(/'/g, '"')), null, 2);
+  }
+};
+const apiFile = 'api/api.json';
+export const getApi = (project: Project) => {
+  const p = path.join(project.locate, apiFile);
+  if (!fs.existsSync(p)) {
+    return '';
+  }
+  const api = fs.readFileSync(p, 'utf-8');
+  if (api) {
+    return JSON.stringify(JSON.parse(api.replace(/'/g, '"')), null, 2);
+  }
 };
 
 export const writeProxy = (project: Project, jsonString: string) => {
@@ -264,6 +284,11 @@ export const writeProxy = (project: Project, jsonString: string) => {
     );
   }
   fs.writeFileSync(locate, config);
+};
+
+export const writeApi = (project: Project, jsonString: string) => {
+  const locate = path.join(project.locate, apiFile);
+  fs.writeFileSync(locate, jsonString);
 };
 const apiHandler = async (res: http.ServerResponse, url: string) => {
   const response = {
@@ -320,6 +345,9 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
             break;
           case 'proxy':
             writeProxy(project, decodeURIComponent(configValue));
+            break;
+          case 'api':
+            writeApi(project, decodeURIComponent(configValue));
             break;
           default:
             break;
