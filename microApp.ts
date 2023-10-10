@@ -342,12 +342,15 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
             break;
           case 'port':
             writePort(project, decodeURIComponent(configValue));
+            await restartServer(project);
             break;
           case 'proxy':
             writeProxy(project, decodeURIComponent(configValue));
+            await restartServer(project);
             break;
           case 'api':
             writeApi(project, decodeURIComponent(configValue));
+            await restartServer(project);
             break;
           default:
             break;

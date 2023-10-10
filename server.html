@@ -77,8 +77,6 @@
     </style>
   </head>
   <body>
-    <button class="proxy">toggle 代理</button>
-    <button class="api">toggle api</button>
     <table>
       <thead>
         <tr>
@@ -113,21 +111,11 @@
     let logType = '';
     let isEditing = false;
 
-    let showProxy = false;
-    let showApi = false;
+    const showProxy = {};
+    const showApi = {};
     let fetchProjectsTimer = null;
     let fetchLogTimer = null;
-    document.querySelector('.api').addEventListener('click', () => {
-      clearTimeout(fetchProjectsTimer);
-      fetchProjects();
-      showApi = !showApi;
-    });
 
-    document.querySelector('.proxy').addEventListener('click', () => {
-      clearTimeout(fetchProjectsTimer);
-      fetchProjects();
-      showProxy = !showProxy;
-    });
     document.querySelector('tbody').addEventListener('dblclick', (e) => {
       const label = e.target;
       if (
@@ -304,6 +292,16 @@
                     <button class="stop">关闭</button>
                     <button class="restart">重启</button>
                     <button class="vscode">vscode</button>
+                               ${
+                                 key.includes('-bff')
+                                   ? '<button class="api">api</button>'
+                                   : ''
+                               } 
+                   ${
+                     key.includes('-ui')
+                       ? '<button class="proxy">proxy</button>'
+                       : ''
+                   } 
                   </td>
                     <td>
                       <button class="log">日志</button>
@@ -318,7 +316,7 @@
                       <input type="text" value="${port}" class="locateInput" data-type="port"/>
                     </td>
                    ${
-                     showProxy
+                     showProxy[key]
                        ? `<td style="width:50px;">
                       <pre class="locateLabel" style="width: 100%;height:100%">${proxy}</pre>
                       <textarea  style="width: 100%;height:100%" value="${proxy}" class="locateInput" data-type="proxy" ></textarea>
@@ -326,10 +324,10 @@
                        : ''
                    }
                     ${
-                      showApi
+                      showApi[key]
                         ? `<td style="width:50px;">
                       <pre class="locateLabel" style="width: 100%;height:100%">${api}</pre>
-                      <textarea  style="width: 100%;height:500px;" value="${api}" class="locateInput" data-type="api" ></textarea>
+                      <textarea  style="width: 1200px;height:500px;" value="${api}" class="locateInput" data-type="api" ></textarea>
                     </td>`
                         : ''
                     }
@@ -390,6 +388,19 @@
             logType = 'errLog';
             await openLog('errLog', key);
             return;
+          }
+
+          if (className === 'proxy') {
+            showProxy[key] = !Boolean(showProxy[key]);
+            clearTimeout(fetchProjectsTimer);
+            fetchProjects();
+            return;
+          }
+
+          if (className === 'api') {
+            showApi[key] = !Boolean(showApi[key]);
+            clearTimeout(fetchProjectsTimer);
+            fetchProjects();
           }
         } catch (err) {
           console.error(err);
