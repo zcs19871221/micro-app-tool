@@ -173,6 +173,7 @@ const start = (project: Project) => {
     project.child?.stdout?.on('data', (data) => {
       const msg = String(data);
       if (msg.includes('Compiled successfully')) {
+        fs.writeFileSync(project.log, '');
         project.status = 'success';
       }
       if (msg.includes('Compiled with some errors ')) {
