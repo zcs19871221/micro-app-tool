@@ -174,7 +174,6 @@ const start = (project: Project) => {
     fs.writeFileSync(project.log, '');
     fs.writeFileSync(project.errLog, '');
 
-    project.status = 'loading';
     project.child?.stdout?.on('data', (data) => {
       const msg = String(data);
       if (msg.includes('Compiled successfully')) {
@@ -191,7 +190,7 @@ const start = (project: Project) => {
     });
     project.child?.stderr?.on('data', (data) => {
       const msg = String(data);
-      if (msg.includes('address already in use') || msg.includes('Error in ') || msg.includes("ERR")) {
+      if (msg.includes('address already in use') || msg.includes('Error in ') || msg.includes("NPM ERR")) {
         project.status = 'error';
       }
       fs.appendFileSync(project.errLog, data);
