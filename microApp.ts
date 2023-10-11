@@ -81,6 +81,10 @@ const projects: Project[] = [
     key: 'ticket-bff',
     locate: 'c:/work/comp-ticket-bff',
   },
+  {
+    key: 'ticket-ui',
+    locate: 'c:/work/comp-ticket-ui',
+  },
 ].map((p): Project => {
   let newProject: Project = {
     ...p,
@@ -176,7 +180,7 @@ const start = (project: Project) => {
         fs.writeFileSync(project.errLog, '');
         project.status = 'success';
       }
-      if (msg.includes('Compiled with some errors ')) {
+      if (msg.includes('Compiled with some errors ') || msg.includes("npm ERR")) {
         project.status = 'error';
       }
       if (msg.includes('Compiling ')) {
