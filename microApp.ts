@@ -326,7 +326,8 @@ const apiHandler = async (res: http.ServerResponse, url: string) => {
         }
         break;
       case 'vscode':
-        execSync(`code ${project.locate}`);
+        const params = configType ? `-g ${decodeURIComponent(configType)}`:project.locate;
+        execSync(`code ${params}`);
         break;
       case 'log':
         res.end(fs.readFileSync(project.log));

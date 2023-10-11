@@ -74,6 +74,11 @@
         font-size: 20px;
         padding: 5px 8px;
       }
+      
+      .jump {
+        color: red;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -202,6 +207,11 @@
         clearTimeout(fetchLogTimer);
         fetchOpenLog();
       }
+      if (e.target.className === 'jump') {
+        const href = e.target.dataset.href;
+        window
+        .fetch(href)
+      }
     });
 
     const fetchOpenLog = async () => {
@@ -213,14 +223,18 @@
       const reader = response.body.getReader();
       const { done, value } = await reader.read();
 
-      popContent.textContent = new TextDecoder()
+      popContent.innerHTML = new TextDecoder()
         .decode(value)
         .replace(/\[1m/g, '')
         .replace(/\x1B/g, '')
         .replace(/\[22m/g, '')
         .replace(/\[32m/g, '')
         .replace(/\[33m/g, '')
-        .replace(/\[39m/g, '');
+        .replace(/\[39m/g, '')
+        .replace(/ERROR in ([^(]+)\((\d+),(\d+)\)/g, (_match, locate, row, col) => {
+          return `<span class="jump" data-href="/api/vscode/${logKey}/${encodeURIComponent(`${locate}:${row}:${col}`)}">${_match}</span>`
+        })
+
       fetchLogTimer = setTimeout(() => {
         fetchOpenLog();
       }, logInterval);
