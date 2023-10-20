@@ -23,9 +23,18 @@ interface OverRide {
   };
 }
 
+const safeParse = (str:string) => {
+  try {
+    return JSON.parse(str);
+  } catch {
+    console.error('fail to parse: ' + str);
+    return {}
+
+  }
+}
 const readOverrideConfig = (): OverRide => {
   return fs.existsSync(overRide)
-    ? JSON.parse(fs.readFileSync(overRide, 'utf-8'))
+    ? safeParse(fs.readFileSync(overRide, 'utf-8'))
     : {};
 };
 
@@ -190,6 +199,9 @@ const start = (project: Project) => {
     });
     project.child?.stderr?.on('data', (data) => {
       const msg = String(data);
+      // if (msg.includes('address already in use') ) {
+      //   execSync('taskkill /f /im node.exe')
+      // }
       if (msg.includes('address already in use') || msg.includes('Error in ') || msg.includes("NPM ERR")) {
         project.status = 'error';
       }
@@ -258,7 +270,7 @@ export const getProxy = (project: Project) => {
   const config = fs.readFileSync(p, 'utf-8');
   const proxy = config.match(/router:[\s]*(\{[^}]+\})/)?.[1];
   if (proxy) {
-    return JSON.stringify(JSON.parse(proxy.replace(/'/g, '"')), null, 2);
+    return JSON.stringify(safeParse(proxy.replace(/'/g, '"')), null, 2);
   }
 };
 const apiFile = 'api/api.json';
@@ -269,7 +281,7 @@ export const getApi = (project: Project) => {
   }
   const api = fs.readFileSync(p, 'utf-8');
   if (api) {
-    return JSON.stringify(JSON.parse(api.replace(/'/g, '"')), null, 2);
+    return JSON.stringify(safeParse(api.replace(/'/g, '"')), null, 2);
   }
 };
 
