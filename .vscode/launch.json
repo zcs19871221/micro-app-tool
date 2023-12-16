@@ -10,7 +10,6 @@
       "program": "${file}",
       "type": "node"
     },
-
     {
       "type": "node",
       "request": "launch",

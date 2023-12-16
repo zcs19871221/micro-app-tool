@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
+    "target": "ES2018",
     "strict": true,
     "moduleResolution": "node",
+    "esModuleInterop": true,
     "sourceMap": true,
     "outDir": "./build",
     "jsx": "react",
@@ -11,7 +12,7 @@
     "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "module": "esnext"
+    "module": "CommonJS"
   },
-  "include": ["test.ts", "microApp.ts"]
+  "include": ["test/new/index", "i18n/*.ts"]
 }
