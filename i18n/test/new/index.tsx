@@ -27,6 +27,7 @@ export const App = ({
   };
 
   const flag2 = true;
+  const x = `和\``;
   console.log(gender, school, school1, school2, obj, nested1, nested2);
   return (
     <div
@@ -38,7 +39,7 @@ export const App = ({
       data-v1={`你好${name}哈哈${gender}为什么`}
       data-v2={'请输入'}
     >
-      html中纯文本
+      `${}html中纯文本`
       {flag2 ? (
         <div>{'fdsfdf'}</div>
       ) : (
