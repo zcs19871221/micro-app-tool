@@ -1,6 +1,13 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { FileReplacer } from './FileReplacer';
+import { FileReplaceInfo, SyntaxParser } from './FileReplaceInfo';
+import {
+  BlockEnd,
+  BlockStart,
+  VariableEnd,
+  VariableStart,
+} from './MixedTextParser';
+import { StringVariableSyntaxParser } from './StringVariableSynatxParser';
 
 type ReplaceBundleOpt = (
   | {
@@ -97,9 +104,6 @@ export class ReplaceBundle {
     return `import { lang } from '${langLocate}/lang/config';\n`;
   }
 
-  public debug(): boolean {
-    return this.opt.debug ?? false;
-  }
   public async bundleReplace() {
     try {
       await Promise.all(
@@ -127,16 +131,35 @@ export class ReplaceBundle {
     }
   }
 
-  public getKeyOrSetIfAbsence(chineseText: string, localeMap: string) {
-    let textKey = '';
-    if (this.chineseMappingKey[chineseText]) {
-      textKey = this.chineseMappingKey[chineseText];
-    } else {
-      textKey = `${localeMap ?? 'lang'}.key${this.key++}`;
-      this.chineseMappingKey[chineseText] = textKey;
-    }
+  private static syntaxParsers: SyntaxParser[] = [
+    new BlockStart('templateString', '`'),
+    new BlockEnd('templateString', '`', '${', '}'),
+    new VariableStart('templateString', '${'),
+    new VariableEnd('templateString', '}'),
 
-    return textKey;
+    new BlockStart('htmlTextNode', '>'),
+    new BlockEnd('htmlTextNode', '</', '{', '}'),
+    new VariableStart('htmlTextNode', '{'),
+    new VariableEnd('htmlTextNode', '}'),
+
+    new StringVariableSyntaxParser('doubleQuote'),
+    new StringVariableSyntaxParser('singleQuote'),
+  ];
+
+  private getKeyOrSetIfAbsenceFactory(localeMap: string) {
+    return (chineseText: string) => {
+      let textKey = '';
+      if (this.chineseMappingKey[chineseText]) {
+        textKey = this.chineseMappingKey[chineseText];
+      } else {
+        do {
+          textKey = `${localeMap ?? 'lang'}.key${this.key++}`;
+        } while (!Object.values(this.chineseMappingKey).includes(textKey));
+        this.chineseMappingKey[chineseText] = textKey;
+      }
+
+      return textKey;
+    };
   }
 
   private async replaceAllFiles(srcDirs: string[]): Promise<void> {
@@ -150,29 +173,63 @@ export class ReplaceBundle {
           );
         }
 
-        const file = await fs.promises.readFile(srcLocate, 'utf-8');
+        let file = await fs.promises.readFile(srcLocate, 'utf-8');
 
         const exisitingMap = file.match(
           /((ctx\.lang)|(commonlang)|(lang))\./
         )?.[1];
 
-        const fileReplacer = new FileReplacer(
+        const fileReplaceInfo = new FileReplaceInfo(
           file,
-          this,
-          exisitingMap ?? 'lang'
+          srcLocate,
+          this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang'),
+          this.opt.debug
         );
-        let newFile = fileReplacer.replace();
-        fileReplacer.clear();
+        while (fileReplaceInfo.inFileRange()) {
+          const syntaxParsers = ReplaceBundle.syntaxParsers.filter(
+            (syntaxParser) => syntaxParser.match(fileReplaceInfo)
+          );
+          if (syntaxParsers.length > 1) {
+            throw new Error(
+              'matched parsers:' +
+                syntaxParsers.map((parser) => parser.getName()) +
+                ' at' +
+                fileReplaceInfo.pos +
+                'should only match one '
+            );
+          }
+          if (syntaxParsers.length == 1) {
+            syntaxParsers[0].handle(fileReplaceInfo);
+          }
+          fileReplaceInfo.pos++;
+        }
 
-        if (file !== newFile) {
-          if (!exisitingMap) {
-            newFile = this.createImportStatement(this.opt.outputDir) + file;
+        if (fileReplaceInfo.positionToReplace.length === 0) {
+          return;
+        }
+
+        fileReplaceInfo.positionToReplace.sort(
+          (a, b) => b.startPos - a.startPos
+        );
+        let prevStart: number | null = null;
+        fileReplaceInfo.positionToReplace.forEach(
+          ({ startPos, endPos, newText }) => {
+            if (prevStart === null) {
+              prevStart = startPos;
+            } else if (endPos >= prevStart) {
+              throw new Error(`error parse at${prevStart}`);
+            }
+            file = file.slice(0, startPos) + newText + file.slice(endPos + 1);
           }
-          if (this.opt.fileReplaceOverwirte) {
-            await fs.promises.writeFile(srcLocate, newFile);
-          } else {
-            await fs.promises.writeFile(this.opt.fileReplaceDist, newFile);
-          }
+        );
+
+        if (!exisitingMap) {
+          file = this.createImportStatement(this.opt.outputDir) + file;
+        }
+        if (this.opt.fileReplaceOverwirte) {
+          await fs.promises.writeFile(srcLocate, file);
+        } else {
+          await fs.promises.writeFile(this.opt.fileReplaceDist, file);
         }
       })
     );
