@@ -1,7 +1,9 @@
 /* eslint-disable react/jsx-curly-brace-presence */
 /* eslint-disable no-console */
+//@ts-ignore
 import React from 'react';
 
+interface Custom<CustomT> {}
 export const App = ({
   name = '默认名称',
   flag,
@@ -28,6 +30,7 @@ export const App = ({
 
   const flag2 = true;
   const x = `和\``;
+  const noVariable = ` sfdsfds你好dsffds你好`;
   console.log(gender, school, school1, school2, obj, nested1, nested2);
   return (
     <div
@@ -47,6 +50,10 @@ export const App = ({
       )}
       然后分割
       {name}然后分割
+      <div>空节点</div>
+      <div>
+        空节点
+        </div>
     </div>
   );
 };

@@ -2,6 +2,8 @@ export interface SyntaxParser {
   match: (fileReplacer: FileReplaceInfo) => boolean;
   handle: (fileReplacer: FileReplaceInfo) => void;
   getName: () => string;
+  getStartSymbol: () => string;
+  getEndSymbol: () => string;
 }
 
 export interface Block {
@@ -34,16 +36,52 @@ export class FileReplaceInfo {
   public pos: number = 0;
 
   public pushPosition(startPos: number, endPos: number, newText: string) {
-    const oldText = this.file.slice(startPos, endPos + 1);
-    if (this.debug) {
-      console.log(this.stack);
-      console.log(`${startPos} - ${endPos} ${oldText} -> ${newText}`);
-    }
+    // const oldText = this.file.slice(startPos, endPos + 1);
+    // console.debug(this.stack);
+    // console.debug(`${startPos} - ${endPos} ${oldText} -> ${newText}`);
     this.positionToReplace.push({
       startPos,
       endPos,
       newText,
     });
+  }
+
+  public checkAfterLoop(parser: SyntaxParser, starPos: number) {
+    if (!this.inFileRange()) {
+      throw new Error(
+        parser.getName() +
+          ' startPos: ' +
+          starPos +
+          ' endPos:' +
+          this.pos +
+          'not find correctly'
+      );
+    }
+  }
+
+  public debugMatched(
+    startPos: number,
+    parser: SyntaxParser,
+    endPos: number = this.pos
+  ) {
+    const startSymbolLength = parser.getStartSymbol().length;
+    const endSymbolLength = parser.getEndSymbol().length;
+    console.debug(
+      parser.getName() +
+        ' matched: ' +
+        '[' +
+        this.slice(startPos, startPos + startSymbolLength) +
+        ']' +
+        this.slice(startPos + startSymbolLength, endPos) +
+        '[' +
+        this.slice(endPos, endPos + endSymbolLength) +
+        ']'
+    );
+    console.debug('\n');
+  }
+
+  public slice(startPos: number = this.pos, endPos: number = this.pos + 1) {
+    return this.file.slice(startPos, endPos);
   }
 
   public matchText(text: string, startPos = this.pos) {
@@ -81,7 +119,6 @@ export class FileReplaceInfo {
   constructor(
     public file: string,
     public fileName: string,
-    public readonly generateKey: (chinese: string) => string,
-    private readonly debug: boolean
+    public readonly generateKey: (chinese: string) => string
   ) {}
 }

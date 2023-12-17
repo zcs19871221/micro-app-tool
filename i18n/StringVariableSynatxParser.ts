@@ -6,6 +6,14 @@ export class StringVariableSyntaxParser implements SyntaxParser {
     this.symbol = name === 'singleQuote' ? "'" : '"';
   }
 
+  getStartSymbol() {
+    return this.symbol;
+  }
+
+  getEndSymbol() {
+    return this.symbol;
+  }
+
   getName() {
     return this.name;
   }
@@ -27,6 +35,7 @@ export class StringVariableSyntaxParser implements SyntaxParser {
       !replacer.matchText(this.symbol) &&
       !replacer.matchText('\\', replacer.pos - 1)
     );
+    replacer.checkAfterLoop(this, startPos);
     const chineseMaybe = replacer.file.slice(startPos + 1, replacer.pos);
     if (replacer.includesChinese(chineseMaybe)) {
       let newText = replacer.generateKey(chineseMaybe);
@@ -35,6 +44,7 @@ export class StringVariableSyntaxParser implements SyntaxParser {
       ) {
         newText = `{${newText}}`;
       }
+      replacer.debugMatched(startPos, this, replacer.pos);
       replacer.pushPosition(startPos, replacer.pos, newText);
     }
   }

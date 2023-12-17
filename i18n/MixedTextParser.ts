@@ -6,10 +6,22 @@ import {
 } from './FileReplaceInfo';
 
 abstract class SyntaxParserImpl implements SyntaxParser {
-  constructor(private readonly name: string, private readonly symobl: string) {}
+  constructor(
+    private readonly name: string,
+    private readonly startSymbol: string,
+    private readonly endSymobl: string,
+    private readonly symoblToMatch: string
+  ) {}
+
+  getStartSymbol() {
+    return this.startSymbol;
+  }
+  getEndSymbol() {
+    return this.endSymobl;
+  }
 
   public match(fileReplacer: FileReplaceInfo): boolean {
-    if (fileReplacer.matchText(this.symobl)) {
+    if (fileReplacer.matchText(this.symoblToMatch)) {
       return this.doMatch(fileReplacer);
     }
 
@@ -30,20 +42,21 @@ abstract class SyntaxParserImpl implements SyntaxParser {
 interface Matcher {
   match(replacer: FileReplaceInfo): boolean;
 }
-class TempalteStingVariableStartMatcher implements Matcher {
+class TemplateStringEscapeMatch implements Matcher {
   match(replacer: FileReplaceInfo): boolean {
     return !replacer.matchText('\\', replacer.pos - 1);
   }
 }
 class HtmlTextNodeBlockStartMatcher implements Matcher {
-  private matchTextNodeBlockStartTag(replacer: FileReplaceInfo) {
+  public match(replacer: FileReplaceInfo) {
     const { file, pos } = replacer;
-    const startTagRightBacket = file[pos - 1].match(/[a-zA-Z\d\s\n}]/) !== null;
+    const startTagRightBacket =
+      file[pos - 1].match(/[a-zA-Z\d\s\n}"']/) !== null;
     if (!startTagRightBacket) {
       return false;
     }
     let curPos = pos;
-    let searchCount = 150;
+    let searchCount = 250;
     do {
       curPos--;
     } while (
@@ -54,21 +67,18 @@ class HtmlTextNodeBlockStartMatcher implements Matcher {
     if (file[curPos] !== '<' || file[curPos + 1] === '/') {
       return false;
     }
-    const tag = file
+    const matchedTag = file
       .slice(curPos + 1, pos)
-      .match(/(([a-z]+(\d+)?)|([A-Z][a-zA-Z]+))[\s\n]+/);
-    if (tag) {
-      return true;
+      .match(/((?:(?:[a-z]+(\d+)?)|(?:[A-Z][a-zA-Z]+)))([\s\n]+)?/);
+    if (matchedTag) {
+      const tagMaybe = matchedTag[1];
+      if (matchedTag[2]) {
+        return true;
+      }
+      return file.indexOf('</' + tagMaybe + '>', pos) > -1;
     }
 
     return false;
-  }
-
-  public match(replacer: FileReplaceInfo) {
-    return (
-      this.matchTextNodeBlockStartTag(replacer) &&
-      replacer.peek()?.type === 'htmlTextNode'
-    );
   }
 }
 
@@ -79,11 +89,39 @@ abstract class MixedTextParser extends SyntaxParserImpl {
       | 'BlockStart'
       | 'BlockEnd'
       | 'VariableStart'
-      | 'VariableEnd',
-    symobl: string
+      | 'VariableEnd'
   ) {
-    super(type + position, symobl);
+    let startBlockSymbol = '`';
+    let endBlockSymbol = '`';
+    let startVariableSymbol = '${';
+    let endVariableSymbol = '}';
+    let symoblToMatch = '';
+    if (type === 'htmlTextNode') {
+      startBlockSymbol = '>';
+      endBlockSymbol = '</';
+      startVariableSymbol = '{';
+      endVariableSymbol = '}';
+    }
+    let startSymbol;
+    let endSymbol;
+    if (position === 'BlockEnd' || position === 'BlockStart') {
+      startSymbol = startBlockSymbol;
+      endSymbol = endBlockSymbol;
+    } else {
+      startSymbol = startVariableSymbol;
+      endSymbol = endVariableSymbol;
+    }
+    if (position === 'BlockStart' || position === 'VariableStart') {
+      symoblToMatch = startSymbol;
+    } else {
+      symoblToMatch = endSymbol;
+    }
+    super(type + position, startSymbol, endSymbol, symoblToMatch);
   }
+
+  protected matcher: Matcher = {
+    match: () => true,
+  };
 
   protected doMatch(replacer: FileReplaceInfo): boolean {
     if (
@@ -99,23 +137,17 @@ abstract class MixedTextParser extends SyntaxParserImpl {
 }
 
 export class BlockStart extends MixedTextParser {
-  private matcher: Matcher = {
-    match: () => true,
-  };
-  constructor(
-    protected readonly type: 'templateString' | 'htmlTextNode',
-    symobl: string
-  ) {
-    super(type, 'BlockStart', symobl);
-    if (type === 'templateString') {
+  constructor(protected readonly type: 'templateString' | 'htmlTextNode') {
+    super(type, 'BlockStart');
+    if (type === 'htmlTextNode') {
       this.matcher = new HtmlTextNodeBlockStartMatcher();
     }
   }
 
   protected doMatchMixedText(replacer: FileReplaceInfo): boolean {
     return (
-      !replacer.peek() ||
-      (replacer.peek()?.position === 'variable' && this.matcher.match(replacer))
+      (!replacer.peek() || replacer.peek()?.position === 'variable') &&
+      this.matcher.match(replacer)
     );
   }
 
@@ -130,25 +162,14 @@ export class BlockStart extends MixedTextParser {
 }
 
 export class VariableStart extends MixedTextParser {
-  constructor(
-    protected readonly type: 'templateString' | 'htmlTextNode',
-    symobl: string
-  ) {
-    super(type, 'VariableStart', symobl);
-    if (type === 'htmlTextNode') {
-      this.matcher = new TempalteStingVariableStartMatcher();
+  constructor(protected readonly type: 'templateString' | 'htmlTextNode') {
+    super(type, 'VariableStart');
+    if (type === 'templateString') {
+      this.matcher = new TemplateStringEscapeMatch();
     }
   }
 
-  private matcher: Matcher = { match: () => true };
-
   protected doMatchMixedText(replacer: FileReplaceInfo): boolean {
-    if (
-      this.type === 'templateString' &&
-      replacer.matchText('\\', replacer.pos - 1)
-    ) {
-      return false;
-    }
     return (
       replacer.peek()?.position === 'block' &&
       replacer.peek()?.type === this.type &&
@@ -166,11 +187,8 @@ export class VariableStart extends MixedTextParser {
 }
 
 export class VariableEnd extends MixedTextParser {
-  constructor(
-    protected readonly type: 'templateString' | 'htmlTextNode',
-    symobl: string
-  ) {
-    super(type, 'VariableEnd', symobl);
+  constructor(protected readonly type: 'templateString' | 'htmlTextNode') {
+    super(type, 'VariableEnd');
   }
 
   protected doMatchMixedText(replacer: FileReplaceInfo): boolean {
@@ -191,6 +209,7 @@ export class VariableEnd extends MixedTextParser {
     const variableStart = replacer.stack.pop() as Variable;
 
     const prev = replacer.peek() as Block;
+    replacer.debugMatched(variableStart.startPos, this);
     prev.variables.push({
       startPos: variableStart.startPos,
       endPos: replacer.pos,
@@ -201,27 +220,32 @@ export class VariableEnd extends MixedTextParser {
 export class BlockEnd extends MixedTextParser {
   constructor(
     protected readonly type: 'templateString' | 'htmlTextNode',
-    symobl: string,
     private readonly variableStartSymbol: string,
     private readonly variableEndSymbol: string
   ) {
-    super(type, 'BlockEnd', symobl);
+    super(type, 'BlockEnd');
+    if (type === 'templateString') {
+      this.matcher = new TemplateStringEscapeMatch();
+    }
   }
 
   protected doMatchMixedText(replacer: FileReplaceInfo): boolean {
     return (
       replacer.peek()?.type === this.type &&
-      replacer.peek()?.position === 'block'
+      replacer.peek()?.position === 'block' &&
+      this.matcher.match(replacer)
     );
   }
 
   protected doHandle(replacer: FileReplaceInfo) {
     const template = replacer.stack.pop() as Block;
+    let start = template.startPos;
+
+    replacer.debugMatched(start, this);
     if (template.variables.length === 0) {
       return;
     }
 
-    let start = template.startPos;
     const chineseRangeMaybe = [];
     template.variables.forEach((range) => {
       chineseRangeMaybe.push({
@@ -246,11 +270,8 @@ export class BlockEnd extends MixedTextParser {
         replacer.pushPosition(
           startPos,
           endPos,
-          `${
-            this.variableStartSymbol
-          }${this.bundleReplacer.getKeyOrSetIfAbsence(
-            matchedChinese[0],
-            this.localeMapName
+          `${this.variableStartSymbol}${replacer.generateKey(
+            matchedChinese[0]
           )}${this.variableEndSymbol}`
         );
       }

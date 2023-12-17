@@ -18,6 +18,15 @@
       "program": "${file}",
       "outFiles": ["${workspaceFolder}/build/**/*.js"],
       "preLaunchTask": "npm: tsc"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "i18n",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/i18n/test/index.ts",
+      "outFiles": ["${workspaceFolder}/build/**/*.js"],
+      "preLaunchTask": "npm: tsc"
     }
   ]
 }
