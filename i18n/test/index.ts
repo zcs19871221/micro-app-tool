@@ -35,3 +35,4 @@ const equals = (dist: string) => {
 };
 
 equals(dist);
+console.log('allPass 😃');
