@@ -50,7 +50,7 @@ export const App = ({
       )}
       然后分割
       {name}然后分割
-      <div>空节点</div>
+      <div>fff空节点zzx空节点</div>
       <div>
         空节点
         </div>

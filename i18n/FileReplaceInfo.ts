@@ -105,10 +105,11 @@ export class FileReplaceInfo {
     return ans;
   }
 
+  public chineseReg() {
+    return /[\u4e00-\u9fa5]+/g;
+  }
   public includesChinese(text: string) {
-    return /[\p{Unified_Ideograph}\u3006\u3007][\ufe00-\ufe0f\u{e0100}-\u{e01ef}]?/gmu.test(
-      text
-    );
+    return this.chineseReg().test(text);
   }
 
   public clear() {

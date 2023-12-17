@@ -1,6 +1,7 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable no-underscore-dangle */
 import * as fs from 'fs-extra';
+import * as assert from 'assert';
 import * as path from 'path';
 import { ReplaceBundle } from '../ReplaceBundle';
 
@@ -17,3 +18,20 @@ const replaceBundle = new ReplaceBundle({
   debug: true,
 });
 replaceBundle.bundleReplace();
+
+const equals = (dist: string) => {
+  fs.readdirSync(dist).map((item) => {
+    item = path.join(dist, item);
+    if (fs.lstatSync(item).isDirectory()) {
+      equals(item);
+    } else {
+      assert.equal(
+        fs.readFileSync(item, 'utf-8'),
+        fs.readFileSync(item.replace('dist', 'expected'), 'utf-8'),
+        'equals ' + path.basename(item)
+      );
+    }
+  });
+};
+
+equals(dist);

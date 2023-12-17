@@ -242,9 +242,6 @@ export class BlockEnd extends MixedTextParser {
     let start = template.startPos;
 
     replacer.debugMatched(start, this);
-    if (template.variables.length === 0) {
-      return;
-    }
 
     const chineseRangeMaybe = [];
     template.variables.forEach((range) => {
@@ -259,21 +256,21 @@ export class BlockEnd extends MixedTextParser {
       endPos: replacer.pos,
     });
     chineseRangeMaybe.forEach((range) => {
-      const matchedChinese = replacer.file
-        .slice(range.startPos, range.endPos)
-        .match(
-          /[\p{Unified_Ideograph}\u3006\u3007][\ufe00-\ufe0f\u{e0100}-\u{e01ef}]?.*[\p{Unified_Ideograph}\u3006\u3007][\ufe00-\ufe0f\u{e0100}-\u{e01ef}]?/mu
-        );
-      if (matchedChinese !== null) {
-        const startPos = range.startPos + matchedChinese.index!;
-        const endPos = startPos + matchedChinese[0].length - 1;
-        replacer.pushPosition(
-          startPos,
-          endPos,
-          `${this.variableStartSymbol}${replacer.generateKey(
-            matchedChinese[0]
-          )}${this.variableEndSymbol}`
-        );
+      const chineseMaybe = replacer.file.slice(range.startPos, range.endPos);
+      const chineseReg = replacer.chineseReg();
+      let matchedChinese: RegExpExecArray | null = null;
+      while ((matchedChinese = chineseReg.exec(chineseMaybe))) {
+        if (matchedChinese !== null) {
+          const startPos = range.startPos + matchedChinese.index;
+          const endPos = startPos + matchedChinese[0].length - 1;
+          replacer.pushPosition(
+            startPos,
+            endPos,
+            `${this.variableStartSymbol}${replacer.generateKey(
+              matchedChinese[0]
+            )}${this.variableEndSymbol}`
+          );
+        }
       }
     });
   }
