@@ -136,6 +136,7 @@ export const lang = window.hi_system.switchLang(
         });
 
         fs.writeFileSync(languageJson, JSON.stringify(keyMappingText, null, 2));
+        console.log('create ' + languageJson + ' successful! 😃');
       });
     } catch (error) {
       console.error(error);
@@ -252,10 +253,14 @@ export const lang = window.hi_system.switchLang(
       }
       if (this.opt.fileReplaceOverwirte) {
         fs.writeFileSync(srcLocate, file);
+        console.log(srcLocate + ' rewrite sucessful! 😃');
       } else {
         fs.writeFileSync(
           path.join(this.opt.fileReplaceDist, path.basename(srcLocate)),
           file
+        );
+        console.log(
+          srcLocate + ' write to ' + this.opt.fileReplaceDist + 'sucessful! 😃'
         );
       }
     });
