@@ -1,5 +1,0 @@
-1. parser: commonMatch and throw error if there still has item in stack
-when pop
-2. move replace logic from filereplacer to bundleReplacer
-3. extract parser from filereplacer to isolate class
-3. generateKey logic change(key increse when duplicate ) and pass to parser
