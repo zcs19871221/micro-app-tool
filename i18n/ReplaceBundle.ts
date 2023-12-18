@@ -2,8 +2,6 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { FileReplaceInfo } from './FileReplaceInfo';
 
-
-
 type ReplaceBundleOpt = (
   | {
       readonly fileReplaceOverwirte: true;
@@ -17,17 +15,20 @@ type ReplaceBundleOpt = (
   readonly outputDir: string;
   readonly ouputImportPath: string;
   readonly srcTargets: string[];
-} & ({
-  debug: boolean;
-  debugPrev?:number;
-  debugAfter?:number;
-  debugBreak?:number;
-} | {
-  debug?: undefined;
-  debugPrev?:never;
-  debugAfter?:never;
-  debugBreak?:never;
-})
+} & (
+    | {
+        debug: boolean;
+        debugPrev?: number;
+        debugAfter?: number;
+        debugBreak?: number;
+      }
+    | {
+        debug?: undefined;
+        debugPrev?: never;
+        debugAfter?: never;
+        debugBreak?: never;
+      }
+  );
 
 export class ReplaceBundle {
   private chineseMappingKey: Record<string, string>;
@@ -181,24 +182,26 @@ export const lang = window.hi_system.switchLang(
         const exisitingMap = file.match(
           /((ctx\.lang)|(commonlang)|(lang))\./
         )?.[1];
-  
+
         const fileReplaceInfo = new FileReplaceInfo(
           file,
           srcLocate,
-          this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang'),
+          this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang')
           // {
           //   debugPrev:  this.opt.debugPrev ?? 10,
           //   debugAfter:  this.opt.debugAfter ?? 10,
           //   debugBreak: this.opt.debugBreak ?? -1,
           // }
         );
-        
-        fileReplaceInfo.parse();
+
+        fileReplaceInfo.extractChinese();
         if (fileReplaceInfo.positionToReplace.length === 0) {
           return;
         }
-  
-        fileReplaceInfo.positionToReplace.sort((a, b) => b.startPos - a.startPos);
+
+        fileReplaceInfo.positionToReplace.sort(
+          (a, b) => b.startPos - a.startPos
+        );
         let prevStart: number | null = null;
         fileReplaceInfo.positionToReplace.forEach(
           ({ startPos, endPos, newText }) => {
@@ -223,17 +226,19 @@ export const lang = window.hi_system.switchLang(
             file
           );
           console.log(
-            srcLocate + ' write to ' + this.opt.fileReplaceDist + 'sucessful! 😃'
+            srcLocate +
+              ' write to ' +
+              this.opt.fileReplaceDist +
+              'sucessful! 😃'
           );
         }
-      } catch(error:any) {
+      } catch (error: any) {
         if (error.message) {
           error.message = '@ ' + srcLocate + ' ' + error.message;
         }
-        console.log(error)
+        console.log(error);
         // throw error
       }
-      
     });
   }
 }

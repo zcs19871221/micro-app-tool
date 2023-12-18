@@ -68,18 +68,27 @@ export class FileReplaceInfo {
     public readonly generateKey: (chinese: string) => string
   ) {}
 
-  public parse() {
+  public extractChinese() {
     const sourceFile = ts.createSourceFile(
       this.fileName,
       this.file,
       ts.ScriptTarget.ES2015,
       true
     );
-    this.delintNode(sourceFile);
+    this.traverseAstAndExtractChinese(sourceFile);
   }
 
-  private delintNode(node: ts.Node) {
+  private removeTextVariableSymobl(text: string) {
+    return text.replace(/(^['"`])|(['"]$)/g, '');
+  }
+
+  private textKeyAddJsxVariableBacket(textKey: string) {
+    return '{' + textKey + '}';
+  }
+
+  private traverseAstAndExtractChinese(node: ts.Node) {
     switch (node.kind) {
+      // 字符串字面量: "你好" '大家' 以及jsx中的属性常量: <div name="张三"/>
       case SyntaxKind.StringLiteral:
         {
           if (node.parent.kind === ts.SyntaxKind.ImportDeclaration) {
@@ -88,10 +97,10 @@ export class FileReplaceInfo {
           this.pushPositionIfChinese({
             start: node.getStart(),
             end: node.getEnd(),
-            chineseMaybe: node.getText().replace(/(^['"])|(['"]$)/g, ''),
-            formatter(textKey: string) {
+            chineseMaybe: this.removeTextVariableSymobl(node.getText()),
+            formatter: (textKey: string) => {
               if (node.parent.kind === SyntaxKind.JsxAttribute) {
-                return '{' + textKey + '}';
+                return this.textKeyAddJsxVariableBacket(textKey);
               }
               return textKey;
             },
@@ -99,17 +108,27 @@ export class FileReplaceInfo {
           });
         }
         break;
+      // html文本标签中字面量<div>大家好</div>
       case SyntaxKind.JsxText:
         this.pushPositionIfChinese({
           start: node.getStart(),
           end: node.getEnd(),
           chineseMaybe: node.getText(),
-          formatter(textKey: string) {
-            return '{' + textKey + '}';
-          },
+          formatter: this.textKeyAddJsxVariableBacket,
           needTrim: true,
         });
         break;
+      // 没有变量的模板字符串: `张三`
+      case SyntaxKind.FirstTemplateToken: {
+        this.pushPositionIfChinese({
+          start: node.getStart(),
+          end: node.getEnd(),
+          chineseMaybe: this.removeTextVariableSymobl(node.getText()),
+          needTrim: false,
+        });
+        break;
+      }
+      // 模板字符串: `${name}张三${gender}李四`
       case ts.SyntaxKind.TemplateExpression: {
         const template = node as TemplateExpression;
         const literalTextNodes: {
@@ -147,8 +166,9 @@ export class FileReplaceInfo {
             },
           });
         });
+        break;
       }
     }
-    ts.forEachChild(node, (n) => this.delintNode(n));
+    ts.forEachChild(node, (n) => this.traverseAstAndExtractChinese(n));
   }
 }
