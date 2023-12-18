@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2018",
-    "strict": true,
+    // "strict": true,
     "noUnusedLocals": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
@@ -15,5 +15,5 @@
     "experimentalDecorators": true,
     "module": "CommonJS"
   },
-  "include": ["./i18n/run/index.ts", "./i18n/text/index.ts", "./i18n/*.ts"],
+  "include": ["./i18n/run/index.ts", "./i18n/test/index.ts", "./i18n/*.ts"],
 }

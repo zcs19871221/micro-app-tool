@@ -1,15 +1,8 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { FileReplaceInfo, SyntaxParser } from './FileReplaceInfo';
-import {
-  BlockEnd,
-  BlockStart,
-  VariableEnd,
-  VariableStart,
-} from './MixedTextParser';
-import { StringVariableSyntaxParser } from './StringVariableSynatxParser';
-import { CommentSyntaxParser } from './CommentSyntaxParser';
-import { RegExpSyntaxParser } from './RegExpSyntaxParser';
+import { FileReplaceInfo } from './FileReplaceInfo';
+
+
 
 type ReplaceBundleOpt = (
   | {
@@ -153,26 +146,6 @@ export const lang = window.hi_system.switchLang(
     }
   }
 
-  private static syntaxParsers: SyntaxParser[] = [
-    new BlockStart('templateString'),
-    new BlockEnd('templateString', '${', '}'),
-    new VariableStart('templateString'),
-    new VariableEnd('templateString'),
-
-    new RegExpSyntaxParser(),
-
-    new BlockStart('htmlTextNode'),
-    new BlockEnd('htmlTextNode', '{', '}'),
-    new VariableStart('htmlTextNode'),
-    new VariableEnd('htmlTextNode'),
-
-    new StringVariableSyntaxParser('doubleQuote'),
-    new StringVariableSyntaxParser('singleQuote'),
-
-    new CommentSyntaxParser('line'),
-    new CommentSyntaxParser('block'),
-  ];
-
   private getKeyOrSetIfAbsenceFactory(localeMap: string) {
     return (chineseText: string) => {
       let textKey = '';
@@ -213,38 +186,14 @@ export const lang = window.hi_system.switchLang(
           file,
           srcLocate,
           this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang'),
-          {
-            debugPrev:  this.opt.debugPrev ?? 10,
-            debugAfter:  this.opt.debugAfter ?? 10,
-            debugBreak: this.opt.debugBreak ?? -1,
-          }
+          // {
+          //   debugPrev:  this.opt.debugPrev ?? 10,
+          //   debugAfter:  this.opt.debugAfter ?? 10,
+          //   debugBreak: this.opt.debugBreak ?? -1,
+          // }
         );
-        while (fileReplaceInfo.inFileRange()) {
-          const syntaxParsers = ReplaceBundle.syntaxParsers.filter(
-            (syntaxParser) => syntaxParser.match(fileReplaceInfo)
-          );
-          if (syntaxParsers.length > 1) {
-            throw new Error(
-              'matched parsers:' +
-                syntaxParsers.map((parser) => parser.getName()) +
-                ' at' +
-                fileReplaceInfo.pos +
-                'should only match one '
-            );
-          }
-          if (syntaxParsers.length == 1) {
-            this.debugIndent += 2;
-  
-            syntaxParsers[0].handle(fileReplaceInfo);
-  
-            this.debugIndent -= 2;
-          }
-          fileReplaceInfo.pos++;
-        }
-  
-        if (fileReplaceInfo.stack.length > 0) {
-          throw new Error( 'templateString or HtmlTextNode not handle correct: stack should be empty');
-        }
+        
+        fileReplaceInfo.parse();
         if (fileReplaceInfo.positionToReplace.length === 0) {
           return;
         }
@@ -258,7 +207,7 @@ export const lang = window.hi_system.switchLang(
             } else if (endPos >= prevStart) {
               throw new Error(`error parse at ${prevStart}`);
             }
-            file = file.slice(0, startPos) + newText + file.slice(endPos + 1);
+            file = file.slice(0, startPos) + newText + file.slice(endPos);
           }
         );
         fileReplaceInfo.clear();

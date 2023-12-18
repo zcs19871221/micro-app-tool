@@ -1,28 +1,5 @@
-export interface SyntaxParser {
-  match: (fileReplacer: FileReplaceInfo) => boolean;
-  handle: (fileReplacer: FileReplaceInfo) => void;
-  getName: () => string;
-  getStartSymbol: () => string;
-  getEndSymbol: () => string;
-}
-
-export interface Block {
-  position: 'block';
-  variables: {
-    startPos: number;
-    endPos: number;
-  }[];
-  startPos: number;
-  type: 'templateString' | 'htmlTextNode';
-}
-
-export interface Variable {
-  position: 'variable';
-  variables?: never;
-  startPos: number;
-  type: 'templateString' | 'htmlTextNode';
-}
-export type StackItem = Block | Variable;
+import * as ts from 'typescript';
+import {SyntaxKind} from 'typescript';
 
 export class FileReplaceInfo {
   public positionToReplace: {
@@ -31,90 +8,12 @@ export class FileReplaceInfo {
     newText: string;
   }[] = [];
 
-  public readonly stack: StackItem[] = [];
-
-  public pos: number = 0;
-
   public pushPosition(startPos: number, endPos: number, newText: string) {
     this.positionToReplace.push({
       startPos,
       endPos,
       newText,
     });
-  }
-
-  public checkAfterLoop(parser: SyntaxParser, starPos: number) {
-    if (!this.inFileRange()) {
-      throw new Error(
-        parser.getName() +
-          ' startPos: ' +
-          starPos +
-          ' endPos:' +
-          this.pos +
-          'not find correctly'
-      );
-    }
-  }
-
-  public static debugSeq: number = 1;
-
-  public debugMatched(
-    startPos: number,
-    parser: SyntaxParser,
-    endPos: number | null = this.pos
-  ) {
-    const startSymbolLength = parser.getStartSymbol().length;
-    const endSymbolLength = parser.getEndSymbol().length;
-    let message: string =
-      FileReplaceInfo.debugSeq +
-      ':' +
-      parser.getName() +
-      ' matched: ' +
-      this.slice(startPos - this.opt.debugPrev, startPos) +
-      '[' +
-      this.slice(startPos, startPos + startSymbolLength) +
-      ']';
-    let end = startPos + startSymbolLength;
-    if (endPos !== null) {
-      message +=
-        this.slice(startPos + startSymbolLength, endPos) +
-        '[' +
-        this.slice(endPos, endPos + endSymbolLength) +
-        ']';
-      end = endPos + endSymbolLength;
-    }
-    message += this.slice(end, end + this.opt.debugAfter);
-    console.debug(message);
-    console.debug('\n');
-    if (FileReplaceInfo.debugSeq === this.opt.debugBreak) {
-      debugger;
-    }
-    FileReplaceInfo.debugSeq++;
-  }
-
-  public slice(startPos: number = this.pos, endPos: number = this.pos + 1) {
-    return this.file.slice(startPos, endPos);
-  }
-
-  public matchText(text: string, startPos = this.pos) {
-    return this.file.slice(startPos, startPos + text.length) === text;
-  }
-
-  public prevStack(): null | StackItem {
-    return this.stack[this.stack.length - 2] ?? null;
-  }
-
-  public peek(): null | StackItem {
-    if (this.stack.length > 0) {
-      return this.stack[this.stack.length - 1];
-    }
-
-    return null;
-  }
-
-  public inFileRange(curPos = this.pos) {
-    const ans = curPos < this.file.length && curPos >= 0;
-    return ans;
   }
 
   public chineseReg() {
@@ -133,12 +32,78 @@ export class FileReplaceInfo {
     public file: string,
     public fileName: string,
     public readonly generateKey: (chinese: string) => string,
-    private readonly opt: {
-      debugPrev: number;
-      debugAfter: number;
-      debugBreak: number;
-    }
-  ) {
-    
+  ) {}
+
+  public parse() {
+    const sourceFile = ts.createSourceFile(
+      this.fileName,
+      this.file,
+      ts.ScriptTarget.ES2015,
+      true
+    );
+    this.delintNode(sourceFile);
+      
   }
+
+  private delintNode(node: ts.Node) {
+    // ts.SyntaxKind.StringLiteral done
+    //   parent is attribute add {}
+    //   parent is import skip
+    //   others
+
+    // ts.SyntaxKind.JsxText
+
+    // ts.SyntaxKind.TemplateHead
+    // ts.SyntaxKind.TemplateSpan
+    // ts.SyntaxKind.LastTemplateToken
+
+    const handle = (node:ts.Node, handler = (textKey:string) => textKey) => {
+      const chineseMaybe = node.getText();
+          if (!this.includesChinese(node.getText())) {
+            return ;
+          }
+          let textKey = this.generateKey(chineseMaybe);
+          textKey = handler(textKey);
+       
+          this.positionToReplace.push({
+            startPos: node.getStart(),
+            endPos: node.getEnd(),
+            newText: textKey,
+          })
+    }
+      switch(node.kind) {
+        case SyntaxKind.StringLiteral: {
+          if (node.parent.kind === ts.SyntaxKind.ImportDeclaration) {
+            return;
+          }
+          handle(node, (textKey:string) => {
+            if (node.parent.kind === SyntaxKind.JsxAttribute) {
+              return "{" +textKey + "}"
+            }
+            return textKey;
+          })
+        }
+        break;
+        case SyntaxKind.JsxText: {
+          handle(node);
+
+        }
+        break;
+        // case ts.SyntaxKind.TemplateHead: {
+        //   console.log(node)
+        // }
+        // break;
+        case ts.SyntaxKind.TemplateSpan: {
+          console.log(node)
+
+        }
+        case ts.SyntaxKind.LastTemplateToken: {
+
+        }
+        break;
+      }
+      console.log(ts.SyntaxKind[node.kind], node.kind);
+      console.log();
+      ts.forEachChild(node, (n) => this.delintNode(n));
+    }
 }

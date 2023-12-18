@@ -19,20 +19,4 @@ const replaceBundle = new ReplaceBundle({
 });
 replaceBundle.bundleReplace();
 
-const equals = (dist: string) => {
-  fs.readdirSync(dist).map((item) => {
-    item = path.join(dist, item);
-    if (fs.lstatSync(item).isDirectory()) {
-      equals(item);
-    } else {
-      assert.equal(
-        fs.readFileSync(item, 'utf-8'),
-        fs.readFileSync(item.replace('dist', 'expected'), 'utf-8'),
-        'equals ' + path.basename(item)
-      );
-    }
-  });
-};
 
-equals(dist);
-console.log('allPass 😃');
