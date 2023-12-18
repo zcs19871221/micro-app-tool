@@ -9,6 +9,7 @@ import {
 } from './MixedTextParser';
 import { StringVariableSyntaxParser } from './StringVariableSynatxParser';
 import { CommentSyntaxParser } from './CommentSyntaxParser';
+import { RegExpSyntaxParser } from './RegExpSyntaxParser';
 
 type ReplaceBundleOpt = (
   | {
@@ -158,6 +159,8 @@ export const lang = window.hi_system.switchLang(
     new VariableStart('templateString'),
     new VariableEnd('templateString'),
 
+    new RegExpSyntaxParser(),
+
     new BlockStart('htmlTextNode'),
     new BlockEnd('htmlTextNode', '{', '}'),
     new VariableStart('htmlTextNode'),
@@ -199,84 +202,89 @@ export const lang = window.hi_system.switchLang(
         );
       }
 
-      let file = fs.readFileSync(srcLocate, 'utf-8');
+      try {
+        let file = fs.readFileSync(srcLocate, 'utf-8');
 
-      const exisitingMap = file.match(
-        /((ctx\.lang)|(commonlang)|(lang))\./
-      )?.[1];
-
-      const fileReplaceInfo = new FileReplaceInfo(
-        file,
-        srcLocate,
-        this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang'),
-        {
-          debugPrev:  this.opt.debugPrev ?? 10,
-          debugAfter:  this.opt.debugAfter ?? 10,
-          debugBreak: this.opt.debugBreak ?? -1,
-        }
-      );
-      while (fileReplaceInfo.inFileRange()) {
-        const syntaxParsers = ReplaceBundle.syntaxParsers.filter(
-          (syntaxParser) => syntaxParser.match(fileReplaceInfo)
+        const exisitingMap = file.match(
+          /((ctx\.lang)|(commonlang)|(lang))\./
+        )?.[1];
+  
+        const fileReplaceInfo = new FileReplaceInfo(
+          file,
+          srcLocate,
+          this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang'),
+          {
+            debugPrev:  this.opt.debugPrev ?? 10,
+            debugAfter:  this.opt.debugAfter ?? 10,
+            debugBreak: this.opt.debugBreak ?? -1,
+          }
         );
-        if (syntaxParsers.length > 1) {
-          throw new Error(
-            'matched parsers:' +
-              syntaxParsers.map((parser) => parser.getName()) +
-              ' at' +
-              fileReplaceInfo.pos +
-              'should only match one '
+        while (fileReplaceInfo.inFileRange()) {
+          const syntaxParsers = ReplaceBundle.syntaxParsers.filter(
+            (syntaxParser) => syntaxParser.match(fileReplaceInfo)
+          );
+          if (syntaxParsers.length > 1) {
+            throw new Error(
+              'matched parsers:' +
+                syntaxParsers.map((parser) => parser.getName()) +
+                ' at' +
+                fileReplaceInfo.pos +
+                'should only match one '
+            );
+          }
+          if (syntaxParsers.length == 1) {
+            this.debugIndent += 2;
+  
+            syntaxParsers[0].handle(fileReplaceInfo);
+  
+            this.debugIndent -= 2;
+          }
+          fileReplaceInfo.pos++;
+        }
+  
+        if (fileReplaceInfo.stack.length > 0) {
+          throw new Error( 'templateString or HtmlTextNode not handle correct: stack should be empty');
+        }
+        if (fileReplaceInfo.positionToReplace.length === 0) {
+          return;
+        }
+  
+        fileReplaceInfo.positionToReplace.sort((a, b) => b.startPos - a.startPos);
+        let prevStart: number | null = null;
+        fileReplaceInfo.positionToReplace.forEach(
+          ({ startPos, endPos, newText }) => {
+            if (prevStart === null) {
+              prevStart = startPos;
+            } else if (endPos >= prevStart) {
+              throw new Error(`error parse at ${prevStart}`);
+            }
+            file = file.slice(0, startPos) + newText + file.slice(endPos + 1);
+          }
+        );
+        fileReplaceInfo.clear();
+        if (!exisitingMap) {
+          file = this.createImportStatement() + file;
+        }
+        if (this.opt.fileReplaceOverwirte) {
+          fs.writeFileSync(srcLocate, file);
+          console.log(srcLocate + ' rewrite sucessful! 😃');
+        } else {
+          fs.writeFileSync(
+            path.join(this.opt.fileReplaceDist, path.basename(srcLocate)),
+            file
+          );
+          console.log(
+            srcLocate + ' write to ' + this.opt.fileReplaceDist + 'sucessful! 😃'
           );
         }
-        if (syntaxParsers.length == 1) {
-          this.debugIndent += 2;
-
-          syntaxParsers[0].handle(fileReplaceInfo);
-
-          this.debugIndent -= 2;
+      } catch(error:any) {
+        if (error.message) {
+          error.message = '@ ' + srcLocate + ' ' + error.message;
         }
-        fileReplaceInfo.pos++;
+        console.log(error)
+        // throw error
       }
-
-      if (fileReplaceInfo.stack.length > 0) {
-        console.error(
-          'templateString or HtmlTextNode not handle correct: ',
-          fileReplaceInfo.stack
-        );
-        throw new Error('stack should be empty');
-      }
-      if (fileReplaceInfo.positionToReplace.length === 0) {
-        return;
-      }
-
-      fileReplaceInfo.positionToReplace.sort((a, b) => b.startPos - a.startPos);
-      let prevStart: number | null = null;
-      fileReplaceInfo.positionToReplace.forEach(
-        ({ startPos, endPos, newText }) => {
-          if (prevStart === null) {
-            prevStart = startPos;
-          } else if (endPos >= prevStart) {
-            throw new Error(`error parse at ${prevStart}`);
-          }
-          file = file.slice(0, startPos) + newText + file.slice(endPos + 1);
-        }
-      );
-      fileReplaceInfo.clear();
-      if (!exisitingMap) {
-        file = this.createImportStatement() + file;
-      }
-      if (this.opt.fileReplaceOverwirte) {
-        fs.writeFileSync(srcLocate, file);
-        console.log(srcLocate + ' rewrite sucessful! 😃');
-      } else {
-        fs.writeFileSync(
-          path.join(this.opt.fileReplaceDist, path.basename(srcLocate)),
-          file
-        );
-        console.log(
-          srcLocate + ' write to ' + this.opt.fileReplaceDist + 'sucessful! 😃'
-        );
-      }
+      
     });
   }
 }

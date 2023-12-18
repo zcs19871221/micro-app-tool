@@ -10,19 +10,19 @@ const dist = path.join(testDir, 'dist');
 
 fs.ensureDirSync(dist);
 const replaceBundle = new ReplaceBundle({
-  outputDir: 'c:\\work\\eh-ui\\assets',
+  outputDir: 'c:\\work\\eh-ui\\pages\\home',
   fileReplaceOverwirte: true,
   srcTargets: [
-    "C:\\work\\eh-ui\\components\\charts\\ChartLineEditorForm.tsx"
-    // 'C:\\work\\eh-ui\\components',
-    // 'C:\\work\\eh-ui\\pages',
-    // 'C:\\work\\eh-ui\\components',
-    // 'C:\\work\\eh-ui\\middleware',
-    // 'C:\\work\\eh-ui\\utils',
+    // 'C:\\work\\eh-ui\\utils\\index.ts',
+    'C:\\work\\eh-ui\\components',
+    'C:\\work\\eh-ui\\pages',
+    'C:\\work\\eh-ui\\components',
+    'C:\\work\\eh-ui\\middleware',
+    'C:\\work\\eh-ui\\utils',
     // 'C:\\work\\eh-ui\\modules',
   ],
-  ouputImportPath: 'Ass',
-  debug: true,
+  ouputImportPath: 'Pag/home',
+  // debug: true,
   // debugBreak: 16,
 });
 replaceBundle.bundleReplace();

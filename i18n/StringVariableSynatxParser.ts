@@ -59,7 +59,7 @@ export class StringVariableSyntaxParser implements SyntaxParser {
     if (
       file[startPos - 1] === '=' &&
       file[startPos - 2].match(/[a-z\d]/i) &&
-      [' ', '\n'].includes(file[endPos])
+      [' ', '\n', '>'].includes(file[endPos])
     ) {
       let count = 500;
       let finded = false;

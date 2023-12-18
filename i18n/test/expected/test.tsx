@@ -46,17 +46,17 @@ export const App = ({
       data-v1={`${lang.key0005}${name}${lang.key0006}${gender}${lang.key0007}`}
       data-v2={lang.key0022}
     >
-      `${}html{lang.key0023}`
+      `${}html{lang.key0024}`
       {flag2 ? (
         <div>{'fdsfdf'}</div>
       ) : (
         <div>{flag2 ? lang.key0005 : `${lang.key0006}${name}${lang.key0005}`}</div>
       )}
-      {lang.key0024}
-      {name}{lang.key0024}
-      <div>fff{lang.key0025}zzx{lang.key0025}</div>
+      {lang.key0025}
+      {name}{lang.key0025}
+      <div>fff{lang.key0023}zzx{lang.key0023}</div>
       <div>
-        {lang.key0025}
+        {lang.key0023}
         </div>
     </div>
   );
