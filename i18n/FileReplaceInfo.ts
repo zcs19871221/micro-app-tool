@@ -1,5 +1,5 @@
 import * as ts from 'typescript';
-import {SyntaxKind} from 'typescript';
+import { SyntaxKind, TemplateExpression } from 'typescript';
 
 export class FileReplaceInfo {
   public positionToReplace: {
@@ -31,7 +31,7 @@ export class FileReplaceInfo {
   constructor(
     public file: string,
     public fileName: string,
-    public readonly generateKey: (chinese: string) => string,
+    public readonly generateKey: (chinese: string) => string
   ) {}
 
   public parse() {
@@ -42,7 +42,6 @@ export class FileReplaceInfo {
       true
     );
     this.delintNode(sourceFile);
-      
   }
 
   private delintNode(node: ts.Node) {
@@ -57,53 +56,77 @@ export class FileReplaceInfo {
     // ts.SyntaxKind.TemplateSpan
     // ts.SyntaxKind.LastTemplateToken
 
-    const handle = (node:ts.Node, handler = (textKey:string) => textKey) => {
-      const chineseMaybe = node.getText();
-          if (!this.includesChinese(node.getText())) {
-            return ;
-          }
-          let textKey = this.generateKey(chineseMaybe);
-          textKey = handler(textKey);
-       
-          this.positionToReplace.push({
-            startPos: node.getStart(),
-            endPos: node.getEnd(),
-            newText: textKey,
-          })
+    const handle = (start:number, end:number, chineseMaybe:string, formatter = (textKey:string) => textKey) => {
+      if (!this.includesChinese(chineseMaybe)) {
+        return;
+      }
+      chineseMaybe.match(/^[\u4e00-\u9fa5a-zA-Z\d]+/)
+      let textKey = this.generateKey(chineseMaybe);
+      textKey = formatter(textKey);
+      this.pushPosition(node.getStart(), node.getEnd(), textKey);
     }
-      switch(node.kind) {
-        case SyntaxKind.StringLiteral: {
+    const collectStringLiteral = (node: ts.Node, handler = (textKey: string) => textKey) => {
+      let chineseMaybe = node.getText();
+      if (!this.includesChinese(node.getText())) {
+        return;
+      }
+      chineseMaybe = chineseMaybe.replace(/['"]/g, '')
+      let textKey = this.generateKey(chineseMaybe);
+      textKey = handler(textKey);
+
+      this.pushPosition(node.getStart(), node.getEnd(), textKey);
+    };
+    switch (node.kind) {
+      case SyntaxKind.StringLiteral:
+        {
           if (node.parent.kind === ts.SyntaxKind.ImportDeclaration) {
             return;
           }
-          handle(node, (textKey:string) => {
+          collectStringLiteral(node, (textKey: string) => {
             if (node.parent.kind === SyntaxKind.JsxAttribute) {
-              return "{" +textKey + "}"
+              return '{' + textKey + '}';
             }
             return textKey;
-          })
+          });
         }
         break;
-        case SyntaxKind.JsxText: {
-          handle(node);
-
-        }
+      case SyntaxKind.JsxText:
+        collectStringLiteral(node, textKey => {
+          return "{" + textKey + "}"
+        });
         break;
-        // case ts.SyntaxKind.TemplateHead: {
-        //   console.log(node)
-        // }
-        // break;
-        case ts.SyntaxKind.TemplateSpan: {
-          console.log(node)
+      case ts.SyntaxKind.TemplateExpression: {
+        const template = node as TemplateExpression;
+        const literalTextNodes: {
+          startPos: number;
+          endPos: number;
+          chineseMaybe: string;
+        }[] = [
+          {
+            startPos: template.head.getStart(),
+            endPos: template.head.getEnd(),
+            chineseMaybe: template.head.rawText,
+          },
+        ];
+        template.templateSpans.forEach((templateSpan) => {
+          literalTextNodes.push({
+            startPos: templateSpan.getStart(),
+            chineseMaybe: templateSpan.literal.rawText,
+            endPos: templateSpan.getEnd(),
+          });
+        });
+        literalTextNodes.filter(l => {
+          return this.includesChinese(l.chineseMaybe)
+        }).forEach(l => {
+          const textKey = this.generateKey(l.chineseMaybe);
+          const startOffset = this.file.slice(l.startPos, l.endPos).indexOf(l.chineseMaybe);
 
-        }
-        case ts.SyntaxKind.LastTemplateToken: {
-
-        }
-        break;
+          
+          this.pushPosition(l.startPos + startOffset, l.startPos + startOffset + l.chineseMaybe.length, textKey)
+     
+        })
       }
-      console.log(ts.SyntaxKind[node.kind], node.kind);
-      console.log();
-      ts.forEachChild(node, (n) => this.delintNode(n));
     }
+    ts.forEachChild(node, (n) => this.delintNode(n));
+  }
 }

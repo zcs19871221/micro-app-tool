@@ -1,7 +1,6 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable no-underscore-dangle */
 import * as fs from 'fs-extra';
-import * as assert from 'assert';
 import * as path from 'path';
 import { ReplaceBundle } from '../ReplaceBundle';
 
