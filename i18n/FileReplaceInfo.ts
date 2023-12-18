@@ -8,11 +8,45 @@ export class FileReplaceInfo {
     newText: string;
   }[] = [];
 
-  public pushPosition(startPos: number, endPos: number, newText: string) {
+  public pushPositionIfChinese({
+    start,
+    end,
+    chineseMaybe,
+    needTrim,
+    formatter = (textKey: string) => textKey,
+  }: {
+    start: number;
+    end: number;
+    needTrim: boolean;
+    chineseMaybe: string;
+    formatter?: (textKey: string) => string;
+  }) {
+    if (!this.includesChinese(chineseMaybe)) {
+      return;
+    }
+    if (needTrim) {
+      const needTrimStart = chineseMaybe.match(/^[^\u4e00-\u9fa5a-zA-Z\d]+/);
+      const needTrimEnd = chineseMaybe.match(/[^\u4e00-\u9fa5a-zA-Z\d]+$/);
+      if (needTrimStart !== null) {
+        chineseMaybe = chineseMaybe.slice(needTrimStart[0].length);
+        start = start + needTrimStart[0].length;
+      }
+      if (needTrimEnd !== null) {
+        chineseMaybe = chineseMaybe.slice(
+          0,
+          chineseMaybe.length - needTrimEnd[0].length
+        );
+        end = end - needTrimEnd[0].length;
+      }
+    }
+
+    let textKey = this.generateKey(chineseMaybe);
+    textKey = formatter(textKey);
+
     this.positionToReplace.push({
-      startPos,
-      endPos,
-      newText,
+      startPos: start,
+      endPos: end,
+      newText: textKey,
     });
   }
 
@@ -45,86 +79,74 @@ export class FileReplaceInfo {
   }
 
   private delintNode(node: ts.Node) {
-    // ts.SyntaxKind.StringLiteral done
-    //   parent is attribute add {}
-    //   parent is import skip
-    //   others
-
-    // ts.SyntaxKind.JsxText
-
-    // ts.SyntaxKind.TemplateHead
-    // ts.SyntaxKind.TemplateSpan
-    // ts.SyntaxKind.LastTemplateToken
-
-    const handle = (start:number, end:number, chineseMaybe:string, formatter = (textKey:string) => textKey) => {
-      if (!this.includesChinese(chineseMaybe)) {
-        return;
-      }
-      chineseMaybe.match(/^[\u4e00-\u9fa5a-zA-Z\d]+/)
-      let textKey = this.generateKey(chineseMaybe);
-      textKey = formatter(textKey);
-      this.pushPosition(node.getStart(), node.getEnd(), textKey);
-    }
-    const collectStringLiteral = (node: ts.Node, handler = (textKey: string) => textKey) => {
-      let chineseMaybe = node.getText();
-      if (!this.includesChinese(node.getText())) {
-        return;
-      }
-      chineseMaybe = chineseMaybe.replace(/['"]/g, '')
-      let textKey = this.generateKey(chineseMaybe);
-      textKey = handler(textKey);
-
-      this.pushPosition(node.getStart(), node.getEnd(), textKey);
-    };
     switch (node.kind) {
       case SyntaxKind.StringLiteral:
         {
           if (node.parent.kind === ts.SyntaxKind.ImportDeclaration) {
             return;
           }
-          collectStringLiteral(node, (textKey: string) => {
-            if (node.parent.kind === SyntaxKind.JsxAttribute) {
-              return '{' + textKey + '}';
-            }
-            return textKey;
+          this.pushPositionIfChinese({
+            start: node.getStart(),
+            end: node.getEnd(),
+            chineseMaybe: node.getText().replace(/(^['"])|(['"]$)/g, ''),
+            formatter(textKey: string) {
+              if (node.parent.kind === SyntaxKind.JsxAttribute) {
+                return '{' + textKey + '}';
+              }
+              return textKey;
+            },
+            needTrim: false,
           });
         }
         break;
       case SyntaxKind.JsxText:
-        collectStringLiteral(node, textKey => {
-          return "{" + textKey + "}"
+        this.pushPositionIfChinese({
+          start: node.getStart(),
+          end: node.getEnd(),
+          chineseMaybe: node.getText(),
+          formatter(textKey: string) {
+            return '{' + textKey + '}';
+          },
+          needTrim: true,
         });
         break;
       case ts.SyntaxKind.TemplateExpression: {
         const template = node as TemplateExpression;
         const literalTextNodes: {
-          startPos: number;
-          endPos: number;
+          start: number;
+          end: number;
           chineseMaybe: string;
         }[] = [
           {
-            startPos: template.head.getStart(),
-            endPos: template.head.getEnd(),
+            start: template.head.getStart(),
+            end: template.head.getEnd(),
             chineseMaybe: template.head.rawText,
           },
         ];
+
         template.templateSpans.forEach((templateSpan) => {
           literalTextNodes.push({
-            startPos: templateSpan.getStart(),
+            start: templateSpan.getStart(),
             chineseMaybe: templateSpan.literal.rawText,
-            endPos: templateSpan.getEnd(),
+            end: templateSpan.getEnd(),
           });
         });
-        literalTextNodes.filter(l => {
-          return this.includesChinese(l.chineseMaybe)
-        }).forEach(l => {
-          const textKey = this.generateKey(l.chineseMaybe);
-          const startOffset = this.file.slice(l.startPos, l.endPos).indexOf(l.chineseMaybe);
 
-          
-          this.pushPosition(l.startPos + startOffset, l.startPos + startOffset + l.chineseMaybe.length, textKey)
-     
-        })
+        literalTextNodes.forEach((l) => {
+          const startOffset = this.file
+            .slice(l.start, l.end)
+            .indexOf(l.chineseMaybe);
+
+          this.pushPositionIfChinese({
+            start: l.start + startOffset,
+            end: l.start + startOffset + l.chineseMaybe.length,
+            chineseMaybe: l.chineseMaybe,
+            needTrim: true,
+            formatter(textKey: string) {
+              return '${' + textKey + '}';
+            },
+          });
+        });
       }
     }
     ts.forEachChild(node, (n) => this.delintNode(n));
