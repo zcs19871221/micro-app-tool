@@ -19,11 +19,14 @@ export class StringVariableSyntaxParser implements SyntaxParser {
   }
 
   public match(replacer: FileReplaceInfo) {
-    return (
+    if (
       replacer.matchText(this.symbol) &&
       !replacer.matchText('\\', replacer.pos - 1) &&
       replacer.peek()?.position !== 'block'
-    );
+    ) {
+      return true;
+    }
+    return false;
   }
 
   public handle(replacer: FileReplaceInfo) {
@@ -35,6 +38,9 @@ export class StringVariableSyntaxParser implements SyntaxParser {
       !replacer.matchText(this.symbol) &&
       !replacer.matchText('\\', replacer.pos - 1)
     );
+    if (replacer.slice(startPos - 5, startPos) == 'from ') {
+      return;
+    }
     replacer.checkAfterLoop(this, startPos);
     const chineseMaybe = replacer.file.slice(startPos + 1, replacer.pos);
     if (replacer.includesChinese(chineseMaybe)) {

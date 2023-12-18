@@ -36,9 +36,6 @@ export class FileReplaceInfo {
   public pos: number = 0;
 
   public pushPosition(startPos: number, endPos: number, newText: string) {
-    // const oldText = this.file.slice(startPos, endPos + 1);
-    // console.debug(this.stack);
-    // console.debug(`${startPos} - ${endPos} ${oldText} -> ${newText}`);
     this.positionToReplace.push({
       startPos,
       endPos,
@@ -59,25 +56,37 @@ export class FileReplaceInfo {
     }
   }
 
+  public static debugSeq: number = 1;
+
   public debugMatched(
     startPos: number,
     parser: SyntaxParser,
-    endPos: number = this.pos
+    endPos: number | null = this.pos
   ) {
     const startSymbolLength = parser.getStartSymbol().length;
     const endSymbolLength = parser.getEndSymbol().length;
-    console.debug(
+    let message: string =
+      FileReplaceInfo.debugSeq +
+      ':' +
       parser.getName() +
-        ' matched: ' +
-        '[' +
-        this.slice(startPos, startPos + startSymbolLength) +
-        ']' +
+      ' matched: ' +
+      this.slice(startPos - this.debugPrev, startPos) +
+      '[' +
+      this.slice(startPos, startPos + startSymbolLength) +
+      ']';
+    let end = startPos + startSymbolLength;
+    if (endPos !== null) {
+      message +=
         this.slice(startPos + startSymbolLength, endPos) +
         '[' +
         this.slice(endPos, endPos + endSymbolLength) +
-        ']'
-    );
+        ']';
+      end = endPos + endSymbolLength;
+    }
+    message += this.slice(end, end + this.debugAfter);
+    console.debug(message);
     console.debug('\n');
+    FileReplaceInfo.debugSeq++;
   }
 
   public slice(startPos: number = this.pos, endPos: number = this.pos + 1) {
@@ -120,6 +129,8 @@ export class FileReplaceInfo {
   constructor(
     public file: string,
     public fileName: string,
-    public readonly generateKey: (chinese: string) => string
+    public readonly generateKey: (chinese: string) => string,
+    private readonly debugPrev = 8,
+    private readonly debugAfter = 8
   ) {}
 }

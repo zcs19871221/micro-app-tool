@@ -2,7 +2,10 @@
 /* eslint-disable no-console */
 //@ts-ignore
 import React from 'react';
-
+//@ts-ignore
+// import file from './报告.doc'
+// //@ts-ignore
+// import file2 from "./报告.doc"
 interface Custom<CustomT> {}
 export const App = ({
   name = '默认名称',

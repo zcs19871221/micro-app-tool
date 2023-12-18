@@ -13,16 +13,16 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "ts",
+      "name": "i18nRun",
       "skipFiles": ["<node_internals>/**"],
-      "program": "${file}",
+      "program": "${workspaceFolder}/i18n/run/index.ts",
       "outFiles": ["${workspaceFolder}/build/**/*.js"],
       "preLaunchTask": "npm: tsc"
     },
     {
       "type": "node",
       "request": "launch",
-      "name": "i18n",
+      "name": "i18nTest",
       "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/i18n/test/index.ts",
       "outFiles": ["${workspaceFolder}/build/**/*.js"],

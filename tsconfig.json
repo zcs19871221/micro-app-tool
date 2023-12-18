@@ -15,6 +15,5 @@
     "experimentalDecorators": true,
     "module": "CommonJS"
   },
-  "include": ["i18n/**/*.ts"],
-  "exclude": ["dist/test.tsx", "i18n/test.tsx"]
+  "include": ["./i18n/run/index.ts", "./i18n/text/index.ts", "./i18n/*.ts"],
 }

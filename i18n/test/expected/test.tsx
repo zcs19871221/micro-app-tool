@@ -3,7 +3,10 @@ import { lang } from 'Test/dist/lang/config';
 /* eslint-disable no-console */
 //@ts-ignore
 import React from 'react';
-
+//@ts-ignore
+// import file from './报告.doc'
+// //@ts-ignore
+// import file2 from "./报告.doc"
 interface Custom<CustomT> {}
 export const App = ({
   name = lang.key0001,

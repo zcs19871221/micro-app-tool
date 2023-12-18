@@ -13,14 +13,15 @@ const replaceBundle = new ReplaceBundle({
   outputDir: 'c:\\work\\eh-ui\\assets',
   fileReplaceOverwirte: true,
   srcTargets: [
-    'C:\\work\\eh-ui\\components',
-    'C:\\work\\eh-ui\\pages',
-    'C:\\work\\eh-ui\\components',
-    'C:\\work\\eh-ui\\middleware',
-    'C:\\work\\eh-ui\\utils',
+    "C:\\work\\eh-ui\\components\\charts\\ChartLineEditorForm.tsx"
+    // 'C:\\work\\eh-ui\\components',
+    // 'C:\\work\\eh-ui\\pages',
+    // 'C:\\work\\eh-ui\\components',
+    // 'C:\\work\\eh-ui\\middleware',
+    // 'C:\\work\\eh-ui\\utils',
     // 'C:\\work\\eh-ui\\modules',
   ],
   ouputImportPath: 'Ass',
-  // debug: true,
+  debug: true,
 });
 replaceBundle.bundleReplace();

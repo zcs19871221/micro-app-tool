@@ -49,6 +49,9 @@ class TemplateStringEscapeMatch implements Matcher {
 }
 class HtmlTextNodeBlockStartMatcher implements Matcher {
   public match(replacer: FileReplaceInfo) {
+    if (replacer.peek()?.type === 'templateString') {
+      return false;
+    }
     const { file, pos } = replacer;
     const startTagRightBacket =
       file[pos - 1].match(/[a-zA-Z\d\s\n}"']/) !== null;
@@ -79,6 +82,12 @@ class HtmlTextNodeBlockStartMatcher implements Matcher {
     }
 
     return false;
+  }
+}
+
+class TemplateStringBlockStartMatcher implements Matcher {
+  public match(replacer: FileReplaceInfo) {
+    return !replacer.peek() || replacer.peek()?.position === 'variable';
   }
 }
 
@@ -141,17 +150,17 @@ export class BlockStart extends MixedTextParser {
     super(type, 'BlockStart');
     if (type === 'htmlTextNode') {
       this.matcher = new HtmlTextNodeBlockStartMatcher();
+    } else {
+      this.matcher = new TemplateStringBlockStartMatcher();
     }
   }
 
   protected doMatchMixedText(replacer: FileReplaceInfo): boolean {
-    return (
-      (!replacer.peek() || replacer.peek()?.position === 'variable') &&
-      this.matcher.match(replacer)
-    );
+    return this.matcher.match(replacer);
   }
 
   protected doHandle(replacer: FileReplaceInfo) {
+    replacer.debugMatched(replacer.pos, this, null )
     replacer.stack.push({
       type: this.type,
       position: 'block',
@@ -178,6 +187,7 @@ export class VariableStart extends MixedTextParser {
   }
 
   protected doHandle(replacer: FileReplaceInfo) {
+    replacer.debugMatched(replacer.pos, this, null);
     replacer.stack.push({
       type: this.type,
       position: 'variable',
@@ -240,9 +250,15 @@ export class BlockEnd extends MixedTextParser {
   protected doHandle(replacer: FileReplaceInfo) {
     const template = replacer.stack.pop() as Block;
     let start = template.startPos;
+    const prevStack = replacer.prevStack();
+    if (prevStack?.type === 'htmlTextNode' && prevStack.position === 'block') {
+      prevStack.variables.push({
+        startPos: start,
+        endPos: replacer.pos,
+      })
+    }
 
     replacer.debugMatched(start, this);
-
     const chineseRangeMaybe = [];
     template.variables.forEach((range) => {
       chineseRangeMaybe.push({

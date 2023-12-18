@@ -15,7 +15,7 @@ const replaceBundle = new ReplaceBundle({
   fileReplaceDist: dist,
   srcTargets: [path.join(testDir, 'test.tsx')],
   ouputImportPath: 'Test/dist',
-  // debug: true,
+  debug: true,
 });
 replaceBundle.bundleReplace();
 

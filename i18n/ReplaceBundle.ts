@@ -23,8 +23,15 @@ type ReplaceBundleOpt = (
   readonly outputDir: string;
   readonly ouputImportPath: string;
   readonly srcTargets: string[];
-  debug?: boolean;
-};
+} & ({
+  debug: boolean;
+  debugPrev?:number;
+  debugAfter?:number;
+} | {
+  debug?: undefined;
+  debugPrev?:never;
+  debugAfter?:never;
+})
 
 export class ReplaceBundle {
   private chineseMappingKey: Record<string, string>;
@@ -82,6 +89,9 @@ export const lang = window.hi_system.switchLang(
 
     console.debug = (...args: any[]) => {
       if (debug) {
+        if (args[0].includes(90)) {
+          debugger;
+        }
         console.log(' '.repeat(this.debugIndent), ...args);
       }
     };
@@ -199,7 +209,9 @@ export const lang = window.hi_system.switchLang(
       const fileReplaceInfo = new FileReplaceInfo(
         file,
         srcLocate,
-        this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang')
+        this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang'),
+        this.opt.debugPrev,
+        this.opt.debugAfter
       );
       while (fileReplaceInfo.inFileRange()) {
         const syntaxParsers = ReplaceBundle.syntaxParsers.filter(
@@ -242,7 +254,7 @@ export const lang = window.hi_system.switchLang(
           if (prevStart === null) {
             prevStart = startPos;
           } else if (endPos >= prevStart) {
-            throw new Error(`error parse at${prevStart}`);
+            throw new Error(`error parse at ${prevStart}`);
           }
           file = file.slice(0, startPos) + newText + file.slice(endPos + 1);
         }
