@@ -250,8 +250,8 @@ export class BlockEnd extends MixedTextParser {
   protected doHandle(replacer: FileReplaceInfo) {
     const template = replacer.stack.pop() as Block;
     let start = template.startPos;
-    const prevStack = replacer.prevStack();
-    if (prevStack?.type === 'htmlTextNode' && prevStack.position === 'block') {
+    const prevStack = replacer.peek();
+    if (prevStack?.type === 'htmlTextNode' && prevStack.position === 'block' ) {
       prevStack.variables.push({
         startPos: start,
         endPos: replacer.pos,

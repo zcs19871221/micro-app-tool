@@ -35,14 +35,15 @@ export class StringVariableSyntaxParser implements SyntaxParser {
       replacer.pos++;
     } while (
       replacer.inFileRange() &&
-      !replacer.matchText(this.symbol) &&
-      !replacer.matchText('\\', replacer.pos - 1)
+      (!replacer.matchText(this.symbol) ||
+      replacer.matchText('\\', replacer.pos - 1))
     );
     if (replacer.slice(startPos - 5, startPos) == 'from ') {
       return;
     }
     replacer.checkAfterLoop(this, startPos);
     const chineseMaybe = replacer.file.slice(startPos + 1, replacer.pos);
+    replacer.debugMatched(startPos, this, replacer.pos);
     if (replacer.includesChinese(chineseMaybe)) {
       let newText = replacer.generateKey(chineseMaybe);
       if (
@@ -50,7 +51,6 @@ export class StringVariableSyntaxParser implements SyntaxParser {
       ) {
         newText = `{${newText}}`;
       }
-      replacer.debugMatched(startPos, this, replacer.pos);
       replacer.pushPosition(startPos, replacer.pos, newText);
     }
   }

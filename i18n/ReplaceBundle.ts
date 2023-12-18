@@ -27,10 +27,12 @@ type ReplaceBundleOpt = (
   debug: boolean;
   debugPrev?:number;
   debugAfter?:number;
+  debugBreak?:number;
 } | {
   debug?: undefined;
   debugPrev?:never;
   debugAfter?:never;
+  debugBreak?:never;
 })
 
 export class ReplaceBundle {
@@ -89,9 +91,6 @@ export const lang = window.hi_system.switchLang(
 
     console.debug = (...args: any[]) => {
       if (debug) {
-        if (args[0].includes(90)) {
-          debugger;
-        }
         console.log(' '.repeat(this.debugIndent), ...args);
       }
     };
@@ -210,8 +209,11 @@ export const lang = window.hi_system.switchLang(
         file,
         srcLocate,
         this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang'),
-        this.opt.debugPrev,
-        this.opt.debugAfter
+        {
+          debugPrev:  this.opt.debugPrev ?? 10,
+          debugAfter:  this.opt.debugAfter ?? 10,
+          debugBreak: this.opt.debugBreak ?? -1,
+        }
       );
       while (fileReplaceInfo.inFileRange()) {
         const syntaxParsers = ReplaceBundle.syntaxParsers.filter(

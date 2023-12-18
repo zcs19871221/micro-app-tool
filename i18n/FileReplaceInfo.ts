@@ -70,7 +70,7 @@ export class FileReplaceInfo {
       ':' +
       parser.getName() +
       ' matched: ' +
-      this.slice(startPos - this.debugPrev, startPos) +
+      this.slice(startPos - this.opt.debugPrev, startPos) +
       '[' +
       this.slice(startPos, startPos + startSymbolLength) +
       ']';
@@ -83,9 +83,12 @@ export class FileReplaceInfo {
         ']';
       end = endPos + endSymbolLength;
     }
-    message += this.slice(end, end + this.debugAfter);
+    message += this.slice(end, end + this.opt.debugAfter);
     console.debug(message);
     console.debug('\n');
+    if (FileReplaceInfo.debugSeq === this.opt.debugBreak) {
+      debugger;
+    }
     FileReplaceInfo.debugSeq++;
   }
 
@@ -130,7 +133,12 @@ export class FileReplaceInfo {
     public file: string,
     public fileName: string,
     public readonly generateKey: (chinese: string) => string,
-    private readonly debugPrev = 8,
-    private readonly debugAfter = 8
-  ) {}
+    private readonly opt: {
+      debugPrev: number;
+      debugAfter: number;
+      debugBreak: number;
+    }
+  ) {
+    
+  }
 }
