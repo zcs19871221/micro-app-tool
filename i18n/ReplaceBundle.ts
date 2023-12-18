@@ -187,11 +187,6 @@ export const lang = window.hi_system.switchLang(
           file,
           srcLocate,
           this.getKeyOrSetIfAbsenceFactory(exisitingMap ?? 'lang')
-          // {
-          //   debugPrev:  this.opt.debugPrev ?? 10,
-          //   debugAfter:  this.opt.debugAfter ?? 10,
-          //   debugBreak: this.opt.debugBreak ?? -1,
-          // }
         );
 
         fileReplaceInfo.extractChinese();

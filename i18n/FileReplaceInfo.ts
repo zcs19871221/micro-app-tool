@@ -62,6 +62,8 @@ export class FileReplaceInfo {
     this.positionToReplace = [];
   }
 
+  public importInsertPos: number = 0;
+
   constructor(
     public file: string,
     public fileName: string,
@@ -75,6 +77,7 @@ export class FileReplaceInfo {
       ts.ScriptTarget.ES2015,
       true
     );
+    this.importInsertPos = sourceFile.getStart();
     this.traverseAstAndExtractChinese(sourceFile);
   }
 

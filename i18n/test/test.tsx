@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 //@ts-ignore
 import React from 'react';
+import { x } from 'I18/';
 //@ts-ignore
 // import file from './报告.doc'
 // //@ts-ignore
@@ -54,9 +55,7 @@ export const App = ({
       然后分割
       {name}然后分割
       <div>fff空节点zzx空节点</div>
-      <div>
-        空节点
-        </div>
+      <div>空节点</div>
     </div>
   );
 };
